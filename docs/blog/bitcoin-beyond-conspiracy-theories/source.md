@@ -220,9 +220,7 @@ Measured in a release build on an Apple silicon Mac, in microseconds per operati
 
 Address derivation is the work a wallet does constantly. On the child-key and tweak rows it stays within three times the C library. Multiplying the generator on its own is about 3.4 times slower. Signing and verifying happen once per spent input and are roughly ten times slower, about a quarter of a millisecond each on the Mac that measured them. I have not timed them on a phone. Verification is dominated by the general point multiplication, which is still plain double-and-add.
 
-The larger cost is not speed. Every operation in this version is variable-time: how long it takes depends on the values it processes, including secret ones. The field and scalar types take a conditional subtraction whenever a result reaches the modulus. Scalar multiplication of a point branches on every bit. The generator table skips zero windows and reads the table at an index taken from the scalar, and in signing that scalar is the nonce. The binary scalar product in `e.multiplied(by: d)` branches on each bit of the private key. Partial knowledge of nonces across many signatures is the classic route to recovering a Schnorr or ECDSA key. I have not tried to measure what an attacker on or near the phone could observe, and the property is missing either way. The scalar copies made while signing and tweaking are also not cleared from memory afterwards.
-
-libsecp256k1 has had years of deliberate work on exactly those two properties, and this module has had none yet. The wallet's documentation used to say that all secret-key math ran in constant-time C. [The commit that switched the backend](https://github.com/winnowwallet/winnow/compare/0348a9cc8c5a3c7e72cb7b3d3c94a993e3b2de66...8718dc554b3d4dc7fa895697c58a6b65d8947e01) rewrote those sentences, because they would otherwise have been false.
+The larger cost is not speed. Every operation in this version is variable-time: how long it takes depends on the values it processes, including secret ones such as the private key and the signing nonce. Secrets are not cleared from memory afterwards either. libsecp256k1 has had years of deliberate work on both properties, and this module has had none yet. The wallet's documentation used to say that all secret-key math ran in constant-time C. [The commit that switched the backend](https://github.com/winnowwallet/winnow/compare/0348a9cc8c5a3c7e72cb7b3d3c94a993e3b2de66...8718dc554b3d4dc7fa895697c58a6b65d8947e01) rewrote those sentences, because they would otherwise have been false. Part 1 of this series looks at what a variable-time curve can leak, who could measure it, and what a constant-time pass would take.
 
 That trade-off is acceptable for an internal test build on a phone I control. It is not a claim about what the shipping wallet should do.
 
@@ -282,12 +280,6 @@ Build 97 is still what testers run. The branch kept moving, and [`native-secp256
 
 On that commit, 598 + 23 + 77 package tests pass, as do 216 + 19 app tests, 15,000 fuzz cases across the harness's fifteen targets, lint, the dependency and test-gate checks, the warnings gates, and the signet journey with its payment mined. None of it is released yet. The next internal build needs a version above 0.8.7.
 
-## Where the bar is now
-
-The first thing missing is constant time. A constant-time pass means replacing the conditional subtractions, the per-bit branches and the secret-indexed table lookup with constant-time selects, clearing secrets after use, and measuring the speed again afterwards. Writing constant-time Swift is only half of it. The compiler decides what instructions run, and on Apple silicon some instructions take data-dependent time unless the processor's DIT flag is set. Apple [tells cryptographic code to set it](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms#Enable-DIT-for-constant-time-cryptographic-operations), with calls that exist from iOS 18.2 and a lower-level route for older systems. Winnow still supports iOS 17, and either route is a step that Swift source alone does not take. CryptoKit sets DIT internally for its own P-256 operations; Winnow's secp256k1 has no such help yet.
-
-The kind of evidence this module lacks exists elsewhere, and Claude wrote that too. [Verified Garbage](https://github.com/pyca/verified-garbage/tree/2fa57c651a97a18e3e1c03503b583f62db9d9e2a) is an experimental cryptography library under the pyca organization, implemented by language models. Each primitive is assembly, written against a Lean model of the processor and proved in Lean to be correct against a specification, memory safe, and constant time. Its P-256 ECDSA verification [on x86-64](https://github.com/pyca/verified-garbage/pull/721) and [on AArch64](https://github.com/pyca/verified-garbage/pull/797) was merged on 3 and 4 October from commits authored by Claude. The point addition there is a complete formula, so there are no exceptional cases to branch on. The library has since added [secp256k1 on AArch64](https://github.com/pyca/verified-garbage/pull/1342) too: keys, ECDH and ECDSA, but not BIP340, BIP32 or Taproot tweaks. Its proofs rest on stated assumptions. On AArch64 the constant-time guarantee holds only if the caller has set DIT, and the Rust around the verified functions is tested, not proved. Even so, that is a different class of evidence from mine. My tests show agreement on the inputs I chose. A machine-checked proof covers every input, within the model it trusts. This module has nothing like it yet. I am not planning to swap Swift for Rust and assembly here. I am noting where the bar now is.
-
 ## Getting the money back
 
 Trust in a primitive and getting your money back after losing a phone are different problems, and post-quantum signatures make the difference sharper.
@@ -313,9 +305,16 @@ Stateful schemes are sharper still. XMSS and LMS must never reuse a one-time key
 
 ## What is next
 
-- **A constant-time pass**, as above, measured before and after.
+This post opens a series. Three more parts are coming:
+
+- **Part 1, side channels:** what a variable-time curve can leak, who could measure it on a phone, and what a constant-time pass would take.
+- **Part 2, two implementations:** why a wallet's second implementation is an oracle rather than a fork risk, what this one caught, and why AI makes a second implementation affordable while making independence harder.
+- **Part 3, MuSig2:** shared signing back on the native build as raw n-of-n accounts, with Bitcoin Core as the second signer.
+
+Outside the series, three things are open:
+
 - **A separate app identity**, so the single-key build can live beside the App Store Winnow instead of replacing it.
-- **Deciding where the module lives:** an independent package, an upstream contribution, or a target that stays inside the wallet. That decision includes whether shared signing and Silent Payments justify adding the curve operations this build left out.
+- **Deciding where the module lives:** an independent package, an upstream contribution, or a target that stays inside the wallet. The MuSig2 branch has already added point and scalar arithmetic to it; Silent Payments would add ECDH.
 - **A recovery record for each design**: what is saved, what can be rediscovered, who learns what during discovery, and what evidence permits signing again. Then lose the phone, restore an old copy, replace the signer, interrupt the scan, and see where the answers fail.
 
 I wrote recently that a payment arriving is evidence about the path it took. This payment took a path I can read all the way down, and that was the point. Whether it is a path the shipping wallet should take is a question the next experiments have to answer.
