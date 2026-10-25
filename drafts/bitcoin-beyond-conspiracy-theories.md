@@ -6,7 +6,7 @@ Draft — Alex Newman · October 25, 2026
 
 Doing startups is mostly counterintuitive. Who starts a captcha company in 2017? I've made all of my money by reconsidering things from first principles. When I go on one of these quests, I usually learn something. This one was about Winnow, my Bitcoin wallet for the iPhone, and it ended in three claims. Each one gets an essay of its own.
 
-**Hardware wallets work better two of three, with a phone as the third key.** One hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add the phone, back its key up to iCloud, and ask for any two: no single loss locks the coins, and no single theft spends them. [Hardware Wallets, Two of Three](/blog/hardware-wallets-two-of-three/).
+**Hardware wallets work better two of three, with a phone as the third key.** One hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add the phone, whose key Winnow backs up to iCloud automatically, and ask for any two: no single loss locks the coins, and no single theft spends them. [Hardware Wallets, Two of Three](/blog/hardware-wallets-two-of-three/).
 
 **A phone wallet should check its own curve, not borrow a general one.** A wallet like Winnow uses about half of libsecp256k1, the library Bitcoin Core uses, and the half it uses can be checked harder than a general library checks itself: a second implementation, a fuzzer that argues with it, and now proofs. That's worth it on a phone, where nothing else does the checking. [Two Implementations, Then a Proof](/blog/two-implementations/).
 

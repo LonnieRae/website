@@ -24,9 +24,9 @@ So add a third key and ask for any two. In Winnow, the third key is the phone's.
 
 Day to day, the phone and one hardware wallet sign, or both hardware wallets do. If a hardware wallet breaks, the phone and the other one sign. If the phone is lost, the two hardware wallets sign, and a new phone can rejoin.
 
-That new phone gets its key back from iCloud. Winnow's backup holds the phone's recovery phrase, sealed with AES-256-GCM under a key kept in iCloud Keychain, and the account's descriptor. The descriptor matters as much as the key: it's the list of every signer's public key, and without it even all three keys can't find the coins. So whoever controls your Apple account could, in principle, recover that one key.
+That new phone gets its key back from iCloud, because Winnow backs its key up there automatically. It does that for every wallet, single-key ones included, and on purpose. The backup holds the phone's recovery phrase, sealed with AES-256-GCM under a key kept in iCloud Keychain, and the account's descriptor. The descriptor matters as much as the key: it's the list of every signer's public key, and without it even all three keys can't find the coins. Trusting iCloud with a key means trusting your Apple account: whoever controls it could recover that key. For a phone wallet, I think that's the right default, because a lost phone is a far more common way to lose coins than a stolen Apple account.
 
-In a single-key wallet that would be a bad trade. As one key of three, it's the right one. The phone's key can't spend alone. Taking your coins would need your Apple account and one of your hardware wallets. In return, losing the phone costs nothing, losing a hardware wallet costs nothing, and nobody has to find a sheet of paper. iCloud gives up some of the secrecy of one key and buys availability for all three.
+As one key of three, the case gets stronger. The phone's key can't spend alone. Taking your coins would need your Apple account and one of your hardware wallets. In return, losing the phone costs nothing, losing a hardware wallet costs nothing, and nobody has to find a sheet of paper.
 
 ## What "better" has to mean
 
