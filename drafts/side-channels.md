@@ -2,7 +2,7 @@
 
 Draft — Alex Newman · October 23, 2026
 
-*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): Winnow owns its curve and Winnow Rescue borrows libsecp256k1's. I fuzzed both and timed both curves.*
+*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): Winnow owns its curve and Winnow Rescue borrows libsecp256k1's. I fuzzed both and timed both curves.*
 
 I write two Bitcoin projects that treat the curve differently. Winnow, the iOS wallet, signs with its own Swift implementation. [Winnow Rescue](https://github.com/winnowwallet/winnowrescue), the recovery tool, finds coins in old wallets and will sweep them into an account you already have. Its core is about 11,800 lines of Rust, tests included, and it gets secp256k1 from libsecp256k1 through the rust-bitcoin crate.
 
@@ -21,7 +21,7 @@ Rescue is early. Only the core exists, and the command-line tool, the window and
 
 Neither fuzzer is better. Rescue's follows coverage, so a few seconds reach deep into its parsers and the state they feed. Winnow's has no feedback. It mutates from fixed seeds and hopes. In return Winnow fuzzes things Rescue doesn't have to: the curve arithmetic and a hostile device. None of Rescue's nine targets tests curve arithmetic, because libsecp256k1 does that and has its own tests.
 
-That's the asymmetry. Owning the curve adds a whole kind of bug for the fuzzer to find. To see whether Winnow's finds them, I planted 21 bugs in the curve code, one at a time. The fuzzer on every pull request caught 13. With a second implementation to check against, it catches 19, and the unit tests catch all 21. [Two Implementations, Then a Proof](/blog/two-implementations/) has the details. I haven't done the same for Rescue's parsers. That's the obvious next experiment, with the same method. A clean fuzz run only means it found nothing. That essay also shows what a proof adds.
+That's the asymmetry. Owning the curve adds a whole kind of bug for the fuzzer to find. To see whether Winnow's finds them, I planted 21 bugs in the curve code, one at a time. The fuzzer on every pull request caught 13. With a second implementation to check against, it catches 19, and the unit tests catch all 21. [Two Implementations Are Better Than One](/blog/two-implementations/) has the details. I haven't done the same for Rescue's parsers. That's the obvious next experiment, with the same method. A clean fuzz run only means it found nothing. [Then a Proof](/blog/then-a-proof/) shows what a proof adds.
 
 ## Why timing
 
@@ -70,6 +70,6 @@ Two things in that layer matter here. Wide division in Swift is a software routi
 
 It takes branch-free arithmetic, complete point formulas, the processor's DIT flag on Apple silicon, and a read of the release assembly, because source that looks branch-free can compile to branches. Winnow's secrets also aren't wiped from memory. That's its own job, because Swift copies values freely.
 
-The proofs in [Two Implementations, Then a Proof](/blog/two-implementations/) say the arithmetic is right, not how long it takes. The Lean-generated arithmetic already drops the branch on its final subtraction, which is one step. Scalar multiplication above it still branches on the key, so these probes would still show the difference.
+The proofs in [Then a Proof](/blog/then-a-proof/) say the arithmetic is right, not how long it takes. The Lean-generated arithmetic already drops the branch on its final subtraction, which is one step. Scalar multiplication above it still branches on the key, so these probes would still show the difference.
 
 When that's done, I'll run these two probes again. They're about 70 lines each, and the pass condition is simple: Winnow's two numbers should look like libsecp256k1's. Until then the module's limits stay in its guide, and the build stays internal.

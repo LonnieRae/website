@@ -2,7 +2,7 @@
 
 Draft — Alex Newman · October 25, 2026
 
-*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): a privacy wallet on a phone has to remember a lot, and phones get restored, replaced and copied. Here's what Winnow remembers, what it refuses to remember, and why the code that handles state is where proofs pay off.*
+*The third of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): a privacy wallet on a phone has to remember a lot, and phones get restored, replaced and copied. Here's what Winnow remembers, what it refuses to remember, and why the code that handles state is where proofs pay off.*
 
 The curve has one right answer for every input. A wallet's state doesn't. It depends on what happened before: which blocks the phone saw, which addresses it handed out, which spends are still in flight. That's where the bugs I worry about most live, and it's the part of a phone wallet that's hardest to get right.
 
