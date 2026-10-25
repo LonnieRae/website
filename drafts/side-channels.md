@@ -2,9 +2,9 @@
 
 Draft — Alex Newman · October 23, 2026
 
-*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): Winnow owns its curve and Winnow Rescue borrows libsecp256k1's. I fuzzed both and timed both curves.*
+*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): Winnow's experimental curve is its own, and Winnow Rescue borrows libsecp256k1's. I fuzzed both and timed both curves.*
 
-I write two Bitcoin projects that treat the curve differently. Winnow, the iOS wallet, signs with its own Swift implementation. [Winnow Rescue](https://github.com/winnowwallet/winnowrescue), the recovery tool, finds coins in old wallets and will sweep them into an account you already have. Its core is about 11,800 lines of Rust, tests included, and it gets secp256k1 from libsecp256k1 through the rust-bitcoin crate.
+I write two Bitcoin projects that treat the curve differently. Winnow, the iOS wallet, signed with its own Swift implementation in an experiment. Its App Store build still uses libsecp256k1. [Winnow Rescue](https://github.com/winnowwallet/winnowrescue), the recovery tool, finds coins in old wallets and will sweep them into an account you already have. Its core is about 11,800 lines of Rust, tests included, and it gets secp256k1 from libsecp256k1 through the rust-bitcoin crate.
 
 Rescue is early. Only the core exists, and the command-line tool, the window and the Electrum adapter are stubs. It can't sweep anything yet. It does parse, derive and check, and that's enough to fuzz.
 
@@ -72,4 +72,4 @@ It takes branch-free arithmetic, complete point formulas, the processor's DIT fl
 
 The proofs in [Then a Proof](/blog/then-a-proof/) say the arithmetic is right, not how long it takes. The Lean-generated arithmetic already drops the branch on its final subtraction, which is one step. Scalar multiplication above it still branches on the key, so these probes would still show the difference.
 
-When that's done, I'll run these two probes again. They're about 70 lines each, and the pass condition is simple: Winnow's two numbers should look like libsecp256k1's. Until then the module's limits stay in its guide, and the build stays internal.
+If I come back to the experiment, I'll run these two probes again. They're about 70 lines each, and the pass condition is simple: Winnow's two numbers should look like libsecp256k1's. Until then the module's limits stay in its guide, its builds stay internal, and the App Store build signs with libsecp256k1.

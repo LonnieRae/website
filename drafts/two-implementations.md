@@ -2,9 +2,9 @@
 
 Draft — Alex Newman · October 23, 2026
 
-*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): I planted 21 bugs in Winnow's Swift curve code to see whether my tests would notice. Most of the time the fuzzer didn't. So I gave it a second implementation to argue with.*
+*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): I planted 21 bugs in the Swift curve I wrote for Winnow as an experiment, to see whether my tests would notice. Most of the time the fuzzer didn't. So I gave it a second implementation to argue with.*
 
-Winnow signs with its own Swift secp256k1. On a phone, timing leaks and stray secrets in memory aren't the worry yet. The worry is simpler: is the math right? I thought I was checking that. This is how I found out how well.
+For an experiment, Winnow signed with its own Swift secp256k1, in internal builds. On a phone, timing leaks and stray secrets in memory aren't the worry yet. The worry is simpler: is the math right? I thought I was checking that. This is how I found out how well.
 
 ## One implementation is the rules. Two is an oracle.
 
@@ -63,7 +63,7 @@ For the carry, a new unit test feeds both implementations operands built from aw
 
 Against the same 21 bugs, the fuzzer now catches 19. The two it misses sit deep in field arithmetic that keys and points can't steer, and the new test catches both, so the unit tests catch all 21.
 
-The real module passes all of it. No real bug turned up this time. The [code is in draft pull request #246](https://github.com/winnowwallet/winnow/pull/246), as its second commit.
+The real module passes all of it. No real bug turned up this time. The [code is in draft pull request #246](https://github.com/winnowwallet/winnow/pull/246), as its second commit. The App Store build still signs with libsecp256k1, and the experiment waits in that draft as a backup.
 
 ## Who wrote both?
 

@@ -2,9 +2,9 @@
 
 Draft — Alex Newman · October 25, 2026
 
-*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): how Winnow's curve arithmetic is written once in Lean, proved for every input, and printed as Swift, and what the proofs do and don't cover.*
+*Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): how the arithmetic of Winnow's experimental curve was written once in Lean, proved for every input, and printed as Swift, and what the proofs do and don't cover.*
 
-Two implementations catch a bug when they disagree. Neither says anything about inputs it was never given, and the lost carry in [Two Implementations Are Better Than One](/blog/two-implementations/) shows how small that gap can be. A proof covers it. You write down what the code must do, which is a specification, and a proof checker confirms that the code does it for every input. [Lean](https://lean-lang.org) is such a checker. In [draft pull request #249](https://github.com/winnowwallet/winnow/pull/249), I used it on the curve's arithmetic.
+Two implementations catch a bug when they disagree. Neither says anything about inputs it was never given, and the lost carry in [Two Implementations Are Better Than One](/blog/two-implementations/) shows how small that gap can be. A proof covers it. You write down what the code must do, which is a specification, and a proof checker confirms that the code does it for every input. [Lean](https://lean-lang.org) is such a checker. In [draft pull request #249](https://github.com/winnowwallet/winnow/pull/249), I used it on the experimental curve's arithmetic. The curve is set aside for now. The method isn't.
 
 ## Write it once, run it twice
 

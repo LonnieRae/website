@@ -2,7 +2,7 @@
 
 Draft — Alex Newman · October 25, 2026
 
-*Building a Bitcoin wallet turns out to be as counterintuitive as building a company. Winnow makes three bets against the usual advice. Here's each one in brief, with the posts behind it.*
+*Building a Bitcoin wallet turns out to be as counterintuitive as building a company. Winnow makes three bets against the usual advice, and I tested one of them and set it aside. Here's each one in brief, with the posts behind it.*
 
 Doing startups is mostly counterintuitive. Who starts a captcha company in 2017? I've made all of my money by reconsidering things from first principles. When I go on one of these quests, I usually learn something.
 
@@ -15,14 +15,16 @@ The usual advice is one hardware wallet and its seed words on paper. That's one 
 - [Keys in Layers](/blog/keys-in-layers/): the argument, the thefts it would have stopped, and what isn't built yet.
 - [Two Phones and a Ledger](/blog/two-phones-and-a-ledger/): how Winnow builds the first layer, and what has been tested against Bitcoin Core.
 
-## Bet two: a phone wallet should own its curve
+## Bet two, tested and set aside: a phone wallet should own its curve
 
-The usual advice is never to roll your own crypto. But a phone wallet uses about half of libsecp256k1, the library inside Bitcoin Core, and carries the rest, tuned for a node. So Winnow has its own curve, about 900 lines of Swift that signed a payment to Kraken on 20 October, and the bet is that it can check that half harder than a general library checks itself.
+The usual advice is never to roll your own crypto. I tried it anyway. A phone wallet uses about half of libsecp256k1, the library inside Bitcoin Core, and carries the rest, tuned for a node. So I wrote Winnow its own curve, about 900 lines of Swift, and in an internal build it signed a payment to Kraken on 20 October. Then I tried to check that half harder than a general library checks itself.
+
+It worked, and I'm keeping libsecp256k1 for now anyway. Checking my own curve took a second implementation, a fuzzer that argues with it, and proofs in Lean, and it's still variable-time and about ten times slower. libsecp256k1 is constant-time, and it already has what's coming next, like silent payments. One lesson carried into [Keys in Layers](/blog/keys-in-layers/): the phone's curve should be different code from the hardware wallet's. The Swift module stays in draft pull requests as a backup in case a flaw ever turns up in the library.
 
 - [What a Phone Needs from libsecp256k1](/blog/what-a-phone-needs/): who else wrote their own, and how much of the library each kind of software uses.
-- [Two Implementations Are Better Than One](/blog/two-implementations/): 21 planted bugs, and a second implementation that caught what the fuzzer missed.
-- [Then a Proof](/blog/then-a-proof/): the arithmetic written once in Lean, proved for every input, and printed as Swift.
-- [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/): what the curve still leaks, measured.
+- [Two Implementations Are Better Than One](/blog/two-implementations/): 21 planted bugs in the experimental curve, and a second implementation that caught what the fuzzer missed.
+- [Then a Proof](/blog/then-a-proof/): the experiment's arithmetic written once in Lean, proved for every input, and printed as Swift.
+- [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/): what the experimental curve leaks, measured against libsecp256k1.
 
 ## Bet three: the dangerous part is what the wallet remembers
 

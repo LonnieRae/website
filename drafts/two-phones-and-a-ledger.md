@@ -18,7 +18,7 @@ Each signer makes an ordinary BIP340 signature over the BIP342 script-path messa
 
 I started with MuSig2, which merges several keys and signatures into one, so a spend looks like any single-key payment. That needs key aggregation, nonces that must never repeat, and two rounds of messages. I built it, shipped it as 0.8.8, and parked it.
 
-Script-path needed none of that. Between `3794057` and `7b7ff30`, the curve module's Swift files didn't change. The 781 lines that were there for a single key were enough.
+Script-path needed none of that. Between `3794057` and `7b7ff30`, the curve module's Swift files didn't change. The 781 lines that were there for a single key were enough. That was the experimental Swift curve; on libsecp256k1, which the App Store build keeps, it's just as true, because the library already signs BIP340.
 
 ## A Ledger as one of the signers
 

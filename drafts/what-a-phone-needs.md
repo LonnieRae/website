@@ -4,7 +4,7 @@ Draft — Alex Newman · October 25, 2026
 
 *Part of the second of [Three Counterintuitive Bets](/blog/three-counterintuitive-bets/): who else wrote their own secp256k1, how much code each takes, and how much of libsecp256k1 a phone wallet actually uses.*
 
-Almost every Bitcoin wallet borrows its curve from libsecp256k1, the library inside Bitcoin Core. Winnow wrote its own. Before arguing that was right, it's worth asking two things: who else did the same, and how much of the library a phone wallet would use if it borrowed.
+Almost every Bitcoin wallet borrows its curve from libsecp256k1, the library inside Bitcoin Core. As an experiment, I wrote Winnow its own. Before deciding whether that was right, it's worth asking two things: who else did the same, and how much of the library a phone wallet would use if it borrowed.
 
 ## Who else wrote their own
 
@@ -33,11 +33,11 @@ And the checks differ in where they come from. Decred compares itself with other
 
 ## How much code it takes
 
-Winnow's curve is purpose-built: one wallet, one kind of signature. I wanted to know how much that saves, so I counted each project's curve code with [tokei](https://github.com/XAMPPRocky/tokei). That's lines of code without comments, blank lines or tests, on each project's main branch on 23 October 2026, except Winnow's, which is on the branch that holds its curve. Curve code here means the arithmetic, the keys and the signatures, including nonce generation, but not general-purpose hash functions.
+The experimental curve is purpose-built: one wallet, one kind of signature. I wanted to know how much that saves, so I counted each project's curve code with [tokei](https://github.com/XAMPPRocky/tokei). That's lines of code without comments, blank lines or tests, on each project's main branch on 23 October 2026, except Winnow's, which is on the branch that holds its curve. Curve code here means the arithmetic, the keys and the signatures, including nonce generation, but not general-purpose hash functions.
 
 | | Lines | Signatures | Also carries | Formally verified |
 |---|---|---|---|---|
-| Winnow (Swift) | 604 | BIP340 | BIP32 and Taproot tweaks | The arithmetic, in Lean, in [draft pull request #249](https://github.com/winnowwallet/winnow/pull/249): integer, field and scalar operations and the point formulas. The rest is tested. |
+| Winnow's experiment (Swift) | 604 | BIP340 | BIP32 and Taproot tweaks | The arithmetic, in Lean, in [draft pull request #249](https://github.com/winnowwallet/winnow/pull/249): integer, field and scalar operations and the point formulas. The rest is tested. |
 | noble-curves (JavaScript) | 392 for secp256k1, on 2,337 shared with its other curves | ECDSA, BIP340 | hash-to-curve, FROST, and Ed25519, the NIST curves and BLS12-381 in the same library | None claimed. Audited four times, fuzzed, and tested against Wycheproof. |
 | trezor-crypto (C) | 1,894, plus a 1,664-line table of precomputed points | ECDSA | NIST P-256 on the same code. Another 701 lines wrap libsecp256k1, which does the signing | None I found. Trezor's firmware signs with libsecp256k1 anyway. |
 | decred secp256k1 (Go) | 3,531 | ECDSA with key recovery, and Decred's own Schnorr | ECDH. btcec adds BIP340 in 260 lines and MuSig2 in 1,279 | None claimed. Tested against other implementations, libsecp256k1 included. |
@@ -48,13 +48,13 @@ Winnow's curve is purpose-built: one wallet, one kind of signature. I wanted to 
 
 Formal verification is rare on that list. libsecp256k1 has proofs for one piece, its modular inverse, and Winnow's draft has them for its arithmetic. Everyone else relies on tests, audits or certification. Ledger is the odd one out in another way: whatever its code does, nobody outside Ledger and its chip maker can read it.
 
-So yes, being purpose-built buys a lot. Winnow's is the smallest that stands alone. Noble's secp256k1 file is shorter, but it leans on 2,337 lines it shares with its other curves.
+So yes, being purpose-built buys a lot. The experiment's is the smallest that stands alone. Noble's secp256k1 file is shorter, but it leans on 2,337 lines it shares with its other curves.
 
-The savings come from features, not from the math. Winnow makes one kind of signature, BIP340, for one kind of output, Taproot. It has no ECDSA, so it can't sign for older address types at all. It has no MuSig2, no ECDH, no key recovery and no batch verification. It doesn't use the curve's endomorphism, its general multiplication is plain double-and-add, and its one table of multiples of G is built when the app starts, in about a millisecond.
+The savings come from features, not from the math. It makes one kind of signature, BIP340, for one kind of output, Taproot. It has no ECDSA, so it can't sign for older address types at all. It has no MuSig2, no ECDH, no key recovery and no batch verification. It doesn't use the curve's endomorphism, its general multiplication is plain double-and-add, and its one table of multiples of G is built when the app starts, in about a millisecond.
 
-The parts every implementation needs don't shrink: arithmetic modulo p and modulo n, adding and doubling points with their edge cases, and the rules for which keys and tweaks are valid. That's most of Winnow's 604 lines, and it's where the planted bugs in [Two Implementations Are Better Than One](/blog/two-implementations/) went.
+The parts every implementation needs don't shrink: arithmetic modulo p and modulo n, adding and doubling points with their edge cases, and the rules for which keys and tweaks are valid. That's most of its 604 lines, and it's where the planted bugs in [Two Implementations Are Better Than One](/blog/two-implementations/) went.
 
-Doing less costs something too. On a Mac, Winnow takes 160 to 280 microseconds to derive a key and sign with it, where libsecp256k1 takes 17, and Winnow isn't constant-time, which [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/) measures. Neither matters much on a phone that signs a few times a day. Both would matter on a server.
+Doing less costs something too. On a Mac, the Swift curve takes 160 to 280 microseconds to derive a key and sign with it, where libsecp256k1 takes 17, and it isn't constant-time, which [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/) measures. Neither matters much on a phone that signs a few times a day. Both would matter on a server. Those costs, and the work it takes to check the curve, are why the App Store build stays on libsecp256k1 for now.
 
 ## What a phone wallet needs from libsecp256k1
 
@@ -72,7 +72,7 @@ Half is the floor. Even deriving keys needs the field and group arithmetic, mult
 
 The biggest difference is a setting. All five keep the same megabyte of precomputed tables, because the library is built by default for a node that checks every signature in the chain. Built with a smaller window, the tables are 33 kilobytes, and a signature check takes 15.2 microseconds instead of 14.7 on my Mac. That 3 percent matters across hundreds of millions of signatures. A phone checks a few.
 
-So a phone wallet carries a general library to use half of it, tuned for a job it doesn't do. The half it uses is the part worth checking hardest. [Two Implementations Are Better Than One](/blog/two-implementations/) and [Then a Proof](/blog/then-a-proof/) are how I check it.
+So a phone wallet carries a general library to use half of it, tuned for a job it doesn't do. The half it uses is the part worth checking hardest. [Two Implementations Are Better Than One](/blog/two-implementations/) and [Then a Proof](/blog/then-a-proof/) are how I checked my own version of it. For now the App Store build keeps borrowing, and the measurements stand either way.
 
 ## Function by function
 
