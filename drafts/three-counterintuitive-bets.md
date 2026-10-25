@@ -145,11 +145,21 @@ None of these is a cryptography bug. Each is the phone remembering something tha
 
 So Winnow keeps as little state as it can. Signing remembers nothing: BIP340 makes each nonce from the key, the message and 32 fresh random bytes, so there's no counter to advance and no session to finish later. That's what makes the iCloud backup safe to restore. You get the phrase back and a slightly stale view of the coins, which the next scan fixes, and never a signer that repeats itself.
 
-Stateful protocols are different. MuSig2's [own spec](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki) says its signers "are stateful". Restore a backup in the middle of a session, and a phone can sign twice with one nonce, which gives away the key. So Winnow parked MuSig2, and the native build refuses a backup that carries a MuSig2 account. A post-quantum scheme like [SHRINCS](https://delvingbitcoin.org/t/shrincs-324-byte-stateful-post-quantum-signatures-with-static-backups/2158) would bring state back for good. Its small signatures need a counter that could never go in the backup, so a phone restored from the backup would sign about ten times larger until its coins moved.
+Stateful protocols are different. MuSig2's [own spec](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki) says its signers "are stateful". Restore a backup in the middle of a session, and a phone can sign twice with one nonce, which gives away the key. So for now Winnow is removing MuSig2, and the native build refuses a backup that carries a MuSig2 account rather than restoring it without one. A post-quantum scheme like [SHRINCS](https://delvingbitcoin.org/t/shrincs-324-byte-stateful-post-quantum-signatures-with-static-backups/2158) would bring state back for good. Its small signatures need a counter that could never go in the backup, so a phone restored from the backup would sign about ten times larger until its coins moved.
 
 The state a wallet does keep is where proofs pay off most. Its bugs show up after a reorg, a restore or another signer's spend, which tests rarely set up, and all four bugs above were found by reading, not by a failing test.
 
 The first trial is [#248](https://github.com/winnowwallet/winnow/pull/248), a Lean specification of spend review, the code that decides what a signer is shown before it signs a multisig spend. Of 27 bugs I planted, the existing tests caught 8 and the specification caught all 27. It also found a real crash, on a coin stored at the very top of the block-height range, which a restored backup can carry. What I'd specify next is the state itself: restoring backups, old copies and two phones included, and rolling back across a reorg.
+
+### Silent payments
+
+Reading libsecp256k1 function by function turned up its newest module: [silent payments](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki), added in [version 0.8.0](https://github.com/bitcoin-core/secp256k1/blob/master/CHANGELOG.md) in August 2026. A silent payment address can be posted once and reused, and every payment to it lands on a fresh address that nobody else can link to it. For a privacy wallet that's exactly the right feature, and it's a good example of where the hard part sits.
+
+The math is in the library, and sending is easy: a little key arithmetic on keys the phone already has. Receiving is the architecture problem. To find a payment, the wallet needs one tweak per transaction, built from that transaction's input keys, and compact block filters don't carry them. The library's own changelog says light-client scanning isn't implemented. So a phone gets tweaks from a server, over Electrum's `blockchain.tweaks.subscribe` the way Cake Wallet does. It turns them into candidate addresses, checks those against the filters it already downloads, and fetches matching blocks from peers. The server learns which blocks you scanned and from where, not which coins are yours.
+
+The alternative is a watcher that holds your scan key. It can't spend, but it sees everything you receive, and it can push a notification when a payment lands.
+
+Both bring state: a scan height to resume from and a server to trust for completeness. The scan key comes from the seed, so the iCloud backup already covers it, and a phone restored from an old backup rescans from that backup's height. What would remove the server is Bitcoin Core serving tweaks to peers the way it serves compact filters. It doesn't yet, and Winnow doesn't receive silent payments yet either.
 
 ## How it started
 
