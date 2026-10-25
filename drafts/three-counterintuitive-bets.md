@@ -122,11 +122,15 @@ Mine depends on the key by 2 to 10 percent, plainly. libsecp256k1's differences 
 
 ### Why I set it aside
 
-It worked, and I'm keeping libsecp256k1 for now anyway. Checking my own curve took a second implementation, a fuzzer that argues with it, and proofs, and it's still variable-time and about ten times slower. libsecp256k1 is constant-time, and it already has what's coming next, like silent payments. The lessons stay. Planted bugs are how you test your tests, a second implementation is an oracle, and proofs fit arithmetic well. And the phone's curve should be different code from the hardware wallet's. The Swift module stays in draft pull requests as a backup, in case a flaw ever turns up in the library.
+It worked, and I'm keeping libsecp256k1 for now anyway. For this kind of software, people won't switch to anything new unless all of it is formally verified, and mine is proved only in its arithmetic. Checking my own curve took a second implementation, a fuzzer that argues with it, and proofs, and it's still variable-time and about ten times slower. libsecp256k1 is constant-time, and it already has what's coming next, like silent payments.
+
+The lessons stay. Planted bugs are how you test your tests, a second implementation is an oracle, and proofs fit arithmetic well. And the phone's curve should be different code from the hardware wallet's. The Swift module stays in draft pull requests as a backup, in case a flaw ever turns up in the library.
+
+libsecp256k1 has formally verified pieces of its own, and they don't save a wallet that uses it wrong. Look back at the thefts in bet one. None of them was a bug in curve arithmetic. They were random number generators, firmware, a web page and a counterfeit device: the architecture around a correct curve. That's the larger problem, and it's where bet three goes.
 
 ## Bet three: the dangerous part is what the wallet remembers
 
-The usual worry is the cryptography. The bugs I worry about most live somewhere duller, in what the wallet remembers.
+The usual worry is the cryptography. The bugs I worry about most live in the architecture around it, and most of all in what the wallet remembers.
 
 A wallet that asks no server about its addresses has to remember a lot: where it stopped scanning, which coins it owns, which spends are in flight. It also remembers which addresses it has handed out. Some of that is privacy in itself. Hand out an address twice and anyone watching can link the two payments, so the phone keeps counters and scans 20 addresses past each one.
 
