@@ -159,7 +159,7 @@ Sending is easy, so it's back, in [a draft change](https://github.com/winnowwall
 
 Receiving needs too much for a light client. To find a payment, the receiver needs a tweak for every eligible transaction in every block, built from the public keys of the coins it spends. A Taproot spend carries only a signature, and its key sits in the coin it spends, in an earlier block. A phone that syncs from compact filters downloads neither. The library's own changelog says light-client scanning isn't implemented.
 
-Fetching it all yourself means every transaction in every block, with its inputs. That was about 7.5 megabytes for one block I checked, so about a gigabyte a day. And an iPhone app can't count on running in the background, so it would catch up on every block since you last opened it.
+Fetching it all from an explorer means every transaction in every block, with its inputs. For one block I checked, that was about 10 megabytes, so about 1.4 gigabytes a day. And an iPhone app can't count on running in the background, so it would catch up on every block since you last opened it.
 
 Otherwise a server does the work. A tweak server, like the Electrum one Cake Wallet uses, hands out the tweaks. The phone checks them against the filters it already has and fetches matching blocks from peers. The server learns which blocks you scanned, not which coins are yours, but you trust it not to leave any out. A watcher that holds your scan key is the other option. It can't spend, but it sees everything you receive.
 
