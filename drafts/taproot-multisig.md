@@ -26,11 +26,33 @@ For small amounts, the phone alone is fine. That's Winnow's ordinary single-key 
 | Hardware wallet and phone | both | stuck, unless you kept its seed words | restore from iCloud |
 | Hardware wallet and phone, with a timelock | both, or one alone after the delay | wait out the delay, then the phone signs | restore from iCloud |
 
+## What it would have caught
+
+Most hardware wallet thefts in the news come down to one implementation failing: one device's random numbers, one device's firmware, one app's screen. Two of two means a thief has to beat two implementations, made by different people, at once.
+
+| What happened | What failed | With a hardware wallet and a phone, two of two |
+|---|---|---|
+| [Coldcard](https://thehackernews.com/2026/08/coldcard-hardware-wallet-flaw-linked-to.html), disclosed 30 July 2026 | Since a firmware change in March 2021, the devices had made seeds from a predictable software generator instead of their hardware one: about 40 bits of real randomness on the Mk3 and 72 on later models. Galaxy Research tied a sweep of 1,196 addresses that day, about $70 million in 41 minutes, to the flaw, and later waves to more. No one has yet rebuilt a victim's seed to prove it. | A guessed hardware seed is one key of two. The phone's key comes from a different generator, in different code. As The Hacker News put it, "multisig helps only when the quorum is not built entirely from affected devices." |
+| [Counterfeit Ledgers](https://www.cryptotimes.io/2026/04/17/counterfeit-ledger-wallet-scam-traced-to-chinese-marketplace/), April 2026 | Fake Nano S Plus devices sold on a Chinese marketplace kept the seed and PIN in plain text. A QR code in the box led to a fake Ledger Live that sat between the app and the device and always passed its own genuine check. | The fake device's key is one of two. Winnow talks to a Ledger with its own client, not Ledger Live, and the phone's key never touches the device. |
+| [Bybit](https://www.nccgroup.com/research/in-depth-technical-analysis-of-the-bybit-hack/), February 2025 | Three of six signers approved a transaction through the same web app, which attackers had altered to show them a different one. It handed over the wallet, and about $1.46 billion left within minutes. | Each device reads the spend itself: the hardware wallet on its own screen, the phone in its own review. A swapped transaction has to fool two independent readings, not one shared one. |
+| [Milk Sad](https://github.com/advisories/GHSA-prgj-h7jq-7p9h) and [Trust Wallet](https://www.ledger.com/blog/Funds-of-every-wallet-created-with-the-Trust-Wallet-browser-extension-could-have-been-stolen), 2023 | Two software wallets made seeds from a generator with 32 bits of entropy, few enough to try them all. Both were exploited. | A weak generator on one side leaves the other side's key standing. |
+| [Dark Skippy](https://cointelegraph.com/news/dark-skippy-method-can-steal-bitcoin-hardware-wallet-keys), a published demonstration | Malicious firmware can leak a device's whole seed through the nonces of just two signatures. | The leaked seed is one key of two. |
+
+That's the point of not relying on one implementation. Every row above is one piece of code doing its job badly, and two of two survives any single one.
+
+It doesn't catch everything. If you check the wrong address on both screens, because malware swapped it before you looked, both devices will faithfully sign the wrong payment. A mistake both implementations share, a misreading of the same BIP, gets through too. And someone who corners you can make you sign with both devices. That one is what the second layer is for.
+
 ## Layer two: people
 
 Layer one protects you from losing a device. It doesn't help if you lose everything at once, or if you're the one who can't be reached. That's what people are for.
 
 The second layer is two of three among parties: you, a trustee, and maybe an exchange. Each party brings its own layer one. Your share might be your hardware wallet and your phone, two of two. A trustee's might be their phone. Any two parties can move the coins, and no single party can, you included. Lose all of your own keys, and the trustee and the exchange can still get the coins back to you. Lose touch with the trustee, and you and the exchange still can.
+
+What the people layer buys is the part one person can't do alone:
+
+- **Wrench attacks.** Someone who corners you can't make you spend, because you're one party of three. The trustee and the exchange can refuse, or take their time checking who's asking.
+- **Borrowing.** An exchange holding one key can lend against the coins without taking them. Lenders already do this: [Unchained](https://help.unchained.com/what-is-loan-collateral-and-what-does-unchained-do-with-it) keeps loan collateral in two-of-three addresses held by the borrower, Unchained and a key agent, so no one of them can move it alone.
+- **Inheritance.** If something happens to you, the trustee and the exchange can move the coins to your spouse, as a trust directs, without anyone ever having held your keys.
 
 Winnow doesn't build layer two yet. An account today is one list of signers plus an optional timelocked path. Two of three among parties, where your share needs both your devices, takes a tree with one leaf for each pair of parties, each leaf asking for every key it needs. Taproot can express that, and the descriptor language can too. Winnow's account code can't yet. The closest it gets is a flat two of three, further down.
 
