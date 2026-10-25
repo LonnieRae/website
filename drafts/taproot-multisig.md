@@ -1,41 +1,47 @@
-# Hardware Wallets, Two of Three
+# Keys in Layers
 
 Draft — Alex Newman · October 23, 2026
 
-*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): one hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add a phone whose key iCloud can restore, ask for any two of the three, and you keep the safety without the lockout. Here's the argument, how Winnow builds it, and what isn't tested yet.*
+*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): a hardware wallet works better with your phone beside it, two of two, and a timelock for the day you lose one. Around that goes a second layer: two of three among you, a trustee and an exchange, each bringing their own keys. Here's the argument, what Winnow builds today, and what it doesn't yet.*
 
 **Shelved 23 October 2026.** This replaces the MuSig2 draft. Keep it shelved until a physical Ledger has signed.
 
-Hardware wallets are good at one thing: they keep the key off your computer and show you the payment on their own screen before they sign. Most setups then waste that by depending on a single device. This is the case for a better arrangement, and for using iCloud in it.
+Hardware wallets are good at one thing: they keep the key off your computer and show you the payment on their own screen before they sign. Most setups stop there, with one device and a sheet of paper. I think keys work better in two layers.
 
-## One device is one thing to lose
+## Layer one: your own keys
 
-With one hardware wallet, the device is the key. Lose it, break it or have it stolen, and your fallback is its seed words on paper, which you have to keep as safely as the device itself. One device, one failure, and the paper is the plan.
+Usually that's two of two: a hardware wallet and your phone. Nothing moves unless both sign. The hardware wallet shows the payment on its screen. The phone runs its own review of the spend before it signs, and that review is held to a Lean specification in [draft pull request #248](https://github.com/winnowwallet/winnow/pull/248). Two devices running different code, from different makers, have to agree before a coin moves. That's the argument for two implementations of the curve, applied to signing.
 
-## Two that agree
+The phone's key is backed up to iCloud automatically, as every Winnow wallet's is. The backup holds the recovery phrase, sealed with AES-256-GCM under a key kept in iCloud Keychain, and the account's descriptor. The descriptor matters as much as the key: it's the list of every signer's public key, and without it even both keys can't find the coins. Lose the phone, and a new one restores both.
 
-Put two hardware wallets in a 2-of-2, and nothing moves unless both sign, each after showing the payment on its own screen. A thief needs both devices. A bug in one device's firmware, or a screen that lies, isn't enough on its own, because the other device has to show and approve the same payment. Two devices from different makers, running different code, have to agree before a coin moves. That's the argument for two implementations of the curve, applied to signing.
+Trusting iCloud with a key means trusting your Apple account: whoever controls it could recover that key. For a phone wallet, I think that's the right default, because a lost phone is a far more common way to lose coins than a stolen Apple account. In two of two it's an easy call, because that key can't spend alone.
 
-The problem is availability. Lose either device and the coins can't move until you go back to its seed words. A 2-of-2 doubles what you have to keep safe and halves what you can afford to lose.
+The weak spot of two of two is the hardware wallet. Lose it, and the coins are stuck unless you kept its seed words. So add a timelock. A Winnow account can carry a second path that opens once a coin has sat still for a chosen number of blocks, up to about 455 days. After that, one device can move it alone. Lose the hardware wallet, wait out the delay, and the phone moves the coins. Nobody has to find a sheet of paper.
 
-## A phone as the third key
+For small amounts, the phone alone is fine. That's Winnow's ordinary single-key wallet.
 
-So add a third key and ask for any two. In Winnow, the third key is the phone's.
+| Your keys | Who signs | Lose the hardware wallet | Lose the phone |
+|---|---|---|---|
+| Phone only | the phone | | restore from iCloud |
+| Hardware wallet and phone | both | stuck, unless you kept its seed words | restore from iCloud |
+| Hardware wallet and phone, with a timelock | both, or one alone after the delay | wait out the delay, then the phone signs | restore from iCloud |
 
-Day to day, the phone and one hardware wallet sign, or both hardware wallets do. If a hardware wallet breaks, the phone and the other one sign. If the phone is lost, the two hardware wallets sign, and a new phone can rejoin.
+## Layer two: people
 
-That new phone gets its key back from iCloud, because Winnow backs its key up there automatically. It does that for every wallet, single-key ones included, and on purpose. The backup holds the phone's recovery phrase, sealed with AES-256-GCM under a key kept in iCloud Keychain, and the account's descriptor. The descriptor matters as much as the key: it's the list of every signer's public key, and without it even all three keys can't find the coins. Trusting iCloud with a key means trusting your Apple account: whoever controls it could recover that key. For a phone wallet, I think that's the right default, because a lost phone is a far more common way to lose coins than a stolen Apple account.
+Layer one protects you from losing a device. It doesn't help if you lose everything at once, or if you're the one who can't be reached. That's what people are for.
 
-As one key of three, the case gets stronger. The phone's key can't spend alone. Taking your coins would need your Apple account and one of your hardware wallets. In return, losing the phone costs nothing, losing a hardware wallet costs nothing, and nobody has to find a sheet of paper.
+The second layer is two of three among parties: you, a trustee, and maybe an exchange. Each party brings its own layer one. Your share might be your hardware wallet and your phone, two of two. A trustee's might be their phone. Any two parties can move the coins, and no single party can, you included. Lose all of your own keys, and the trustee and the exchange can still get the coins back to you. Lose touch with the trustee, and you and the exchange still can.
 
-## What "better" has to mean
+Winnow doesn't build layer two yet. An account today is one list of signers plus an optional timelocked path. Two of three among parties, where your share needs both your devices, takes a tree with one leaf for each pair of parties, each leaf asking for every key it needs. Taproot can express that, and the descriptor language can too. Winnow's account code can't yet. The closest it gets is a flat two of three, further down.
 
-That's the claim: hardware wallets, but arranged so that losing any one thing doesn't lose the coins, and every signer checks the payment for itself. It only holds if each part does its job.
+## What "better" means here
 
-- **Each signer checks.** The hardware wallet shows the payment on its screen. The phone runs its own review of the spend before it signs, and that review is held to a Lean specification in [draft pull request #248](https://github.com/winnowwallet/winnow/pull/248).
-- **The account matches Bitcoin Core.** A differential test builds 60 accounts on each of two seeds and has Core check the descriptors, addresses, signatures and every spend. More on that below.
-- **There's a way back.** An optional recovery path lets fewer signers move a coin that has sat still long enough.
-- **It's honest about what's untested.** No physical Ledger has signed yet.
+That's the claim: hardware wallets, but arranged so that losing any one thing doesn't lose the coins, and every signer checks the payment for itself. It only holds if each part does its job:
+
+- **Each signer checks.** The hardware wallet shows the payment. The phone reviews it independently, against a specification.
+- **Losing a device isn't losing coins.** The phone restores from iCloud, and the timelock covers the hardware wallet.
+- **The account matches Bitcoin Core.** A differential test builds 60 accounts on each of two seeds and has Core check them. More on that below.
+- **What isn't done is said.** No physical Ledger has signed yet, and layer two isn't built.
 
 ## One output, one script
 
@@ -59,11 +65,11 @@ Two version numbers matter here. Version 2.1.2 signs `multi_a` leaves. A recover
 
 The internal key has to be an xpub, because BIP388 wallet policies accept only extended keys. I build it the way Liana does: BIP341's NUMS point, with the SHA-256 of the signers' keys as the chain code. Every child of that point is still unspendable.
 
-## A trustee instead of a second device
+## The closest you can build today
 
-A 2-of-3 needs three keys, and they don't all have to be yours. One of them can sit on someone else's phone. It can belong to a trustee, someone you trust to help and not to spend: a relative, a friend, a lawyer.
+Winnow can't nest layers yet, but it can build a flat two of three, and one of the three keys can sit on someone else's phone. It can belong to a trustee, someone you trust to help and not to spend: a relative, a friend, a lawyer.
 
-Then you sign with your phone and your Ledger, and the trustee's phone sits idle. If you lose the Ledger, your phone and the trustee's sign together. If you lose your phone, the Ledger and the trustee sign. The trustee alone can't spend, and neither can a thief with one device. The trustee joins the way the second phone does in the test notes: their phone shows its key, you build the account with it, and the descriptor goes back to them.
+Then you sign with your phone and your Ledger, and the trustee's phone sits idle. If you lose the Ledger, your phone and the trustee's sign together. If you lose your phone, the Ledger and the trustee sign. The trustee alone can't spend, and neither can a thief with one device. The difference from layer two is that here the trustee plus either of your devices can spend, so your share is two separate keys. In layer two your share counts once and needs both. The trustee joins the way the second phone does in the test notes: their phone shows its key, you build the account with it, and the descriptor goes back to them.
 
 The recovery path in the next section can change that. If it lets any one of the same three signers spend alone after the delay, the trustee can spend alone after the delay too. That's a choice to make on purpose. The other mode, a separate recovery key that you keep somewhere else, gives the trustee nothing extra.
 
@@ -87,7 +93,7 @@ Rescue takes its curve from libsecp256k1, and that's on purpose. If the Swift cu
 
 ## An exchange as a signer
 
-Picture the third key sitting with an exchange instead of with a person. You sign with your phone and your Ledger. If you lose one, the exchange co-signs, after it checks that it's you. And if the exchange embeds Rescue's core, it could also take in coins from a customer's old wallets and sweep them straight into that account.
+In layer two, one of the parties can be an exchange. You sign with your own keys and the trustee with theirs. If one of you can't, the exchange co-signs, after it checks who's asking. And if the exchange embeds Rescue's core, it could also take in coins from a customer's old wallets and sweep them straight into that account.
 
 Nothing like this exists, in Winnow or in Rescue, and I haven't discussed it with an exchange. The pieces it would need are small. The exchange makes an ordinary BIP340 signature over a spend it can read, and it has to show the payment to a person or a rule, the way a Ledger shows it on a screen. A button that signs whatever it's given isn't enough.
 

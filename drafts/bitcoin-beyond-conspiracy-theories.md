@@ -6,7 +6,7 @@ Draft — Alex Newman · October 25, 2026
 
 Doing startups is mostly counterintuitive. Who starts a captcha company in 2017? I've made all of my money by reconsidering things from first principles. When I go on one of these quests, I usually learn something. This one was about Winnow, my Bitcoin wallet for the iPhone, and it ended in three claims. Each one gets an essay of its own.
 
-**Hardware wallets work better two of three, with a phone as the third key.** One hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add the phone, whose key Winnow backs up to iCloud automatically, and ask for any two: no single loss locks the coins, and no single theft spends them. [Hardware Wallets, Two of Three](/blog/hardware-wallets-two-of-three/).
+**Hardware wallets work better in layers.** Usually that's a hardware wallet and your phone, two of two, with the phone's key backed up to iCloud automatically and a timelock in case you lose the hardware wallet. Around that goes a second layer: two of three among you, a trustee and maybe an exchange, each bringing their own keys. [Keys in Layers](/blog/keys-in-layers/).
 
 **A phone wallet should check its own curve, not borrow a general one.** A wallet like Winnow uses about half of libsecp256k1, the library Bitcoin Core uses, and the half it uses can be checked harder than a general library checks itself: a second implementation, a fuzzer that argues with it, and now proofs. That's worth it on a phone, where nothing else does the checking. [Two Implementations, Then a Proof](/blog/two-implementations/).
 
@@ -154,7 +154,7 @@ So I sent [another](https://blockstream.info/tx/3e28224cb67f95a1909a34b7bfceca5c
 
 The latest internal build, [0.8.11](https://github.com/winnowwallet/winnow/releases/tag/v0.8.11), adds Taproot multisig in Advanced mode: two phones and a Ledger in a 2-of-3, say, with an optional recovery path that lets fewer signers move a coin that has sat still for a while. Each signer makes an ordinary BIP340 signature over a different message (the script-path one, from [BIP342](https://github.com/bitcoin/bips/blob/927b6de9915c9262615a6399de51b200f81e5aa4/bip-0342.mediawiki)), so between `3794057` and [`7b7ff30`](https://github.com/winnowwallet/winnow/tree/7b7ff30db3156224e2cf1da3d93b591a59c88844), the curve module's Swift files didn't change at all. The price is paid on-chain: a 2-of-2 spend is about 42 vbytes bigger per input than a single signature, and anyone can see it's multisig.
 
-None of it has signed on a physical Ledger yet. That's the next test. [Hardware Wallets, Two of Three](/blog/hardware-wallets-two-of-three/) makes the case for the arrangement and says what's tested. The whole line is [draft pull request #246](https://github.com/winnowwallet/winnow/pull/246).
+None of it has signed on a physical Ledger yet. That's the next test. [Keys in Layers](/blog/keys-in-layers/) makes the case for the arrangement and says what's tested. The whole line is [draft pull request #246](https://github.com/winnowwallet/winnow/pull/246).
 
 ## The bar
 
