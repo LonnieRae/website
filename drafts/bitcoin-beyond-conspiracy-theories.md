@@ -4,7 +4,7 @@ Draft — Alex Newman · October 25, 2026
 
 *The NIST curve seeds had no secret and no lost phrase. Bitcoin's curve has no seed at all. And 894 lines of my own Swift signed a payment to Kraken.*
 
-I've made all of my money by reconsidering things from first principles. When I go on one of these quests, I usually learn something. This one was about Winnow, my Bitcoin wallet for the iPhone, and it ended in three claims. Each one gets an essay of its own.
+Doing startups is mostly counterintuitive. Who starts a captcha company in 2017? I've made all of my money by reconsidering things from first principles. When I go on one of these quests, I usually learn something. This one was about Winnow, my Bitcoin wallet for the iPhone, and it ended in three claims. Each one gets an essay of its own.
 
 **Hardware wallets work better two of three, with a phone as the third key.** One hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add the phone, back its key up to iCloud, and ask for any two: no single loss locks the coins, and no single theft spends them. [Hardware Wallets, Two of Three](/blog/hardware-wallets-two-of-three/).
 
