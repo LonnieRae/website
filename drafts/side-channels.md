@@ -2,7 +2,7 @@
 
 Draft — Alex Newman · October 23, 2026
 
-*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): Winnow owns its curve and Winnow Rescue borrows libsecp256k1's. I fuzzed both, timed both curves, and asked what a proof could add.*
+*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): Winnow owns its curve and Winnow Rescue borrows libsecp256k1's. I fuzzed both and timed both curves.*
 
 I write two Bitcoin projects that treat the curve differently. Winnow, the iOS wallet, signs with its own Swift implementation. [Winnow Rescue](https://github.com/winnowwallet/winnowrescue), the recovery tool, finds coins in old wallets and will sweep them into an account you already have. Its core is about 11,800 lines of Rust, tests included, and it gets secp256k1 from libsecp256k1 through the rust-bitcoin crate.
 
@@ -21,7 +21,7 @@ Rescue is early. Only the core exists, and the command-line tool, the window and
 
 Neither fuzzer is better. Rescue's follows coverage, so a few seconds reach deep into its parsers and the state they feed. Winnow's has no feedback. It mutates from fixed seeds and hopes. In return Winnow fuzzes things Rescue doesn't have to: the curve arithmetic and a hostile device. None of Rescue's nine targets tests curve arithmetic, because libsecp256k1 does that and has its own tests.
 
-That's the asymmetry. Owning the curve adds a whole kind of bug for the fuzzer to find. To see whether Winnow's finds them, I planted 21 bugs in the curve code, one at a time. The fuzzer on every pull request caught 13. With a second implementation to check against, it catches 19, and the unit tests catch all 21. [Part 2](/blog/two-implementations/) has the details. I haven't done the same for Rescue's parsers. That's the obvious next experiment, with the same method. A clean fuzz run only means it found nothing. Further down I come back to what would show more.
+That's the asymmetry. Owning the curve adds a whole kind of bug for the fuzzer to find. To see whether Winnow's finds them, I planted 21 bugs in the curve code, one at a time. The fuzzer on every pull request caught 13. With a second implementation to check against, it catches 19, and the unit tests catch all 21. [Two Implementations, Then a Proof](/blog/two-implementations/) has the details. I haven't done the same for Rescue's parsers. That's the obvious next experiment, with the same method. A clean fuzz run only means it found nothing. That essay also shows what a proof adds.
 
 ## Why timing
 
@@ -60,20 +60,16 @@ Not a remote attacker. The phone signs on its own schedule and doesn't answer si
 
 Software on the same phone is a different matter, because apps share the processor's caches. A secret-indexed table lookup is what cache attacks look for. Physical access adds power measurement. And the number of signatures will grow, since a hardware signer can be asked to sign repeatedly.
 
-## What a proof would add
+## What's underneath
 
-A fuzzer can only tell you what it found. The 21 planted bugs showed that mine finds some and misses others, and a clean run says nothing about the rest. Formal methods work the other way. You write down what the code must do, which is a specification, and a proof checker confirms that the code does it for every input, not just the ones you tried. [Lean](https://lean-lang.org) is one such checker.
+"No C dependencies" is true only as "no third-party C". Every iOS app runs on Apple's C library, its memory allocator and the Swift runtime, and Winnow is no exception. The 32 random bytes in each nonce come from the system's random number generator, through the C library. The curve's arithmetic itself compiles to plain machine instructions and calls none of that, except to allocate and copy memory.
 
-I've tried it twice. Both trials are draft pull requests on Winnow's repo, stacked on the native stack.
-
-**The curve arithmetic** ([#249](https://github.com/winnowwallet/winnow/pull/249)). I wrote the integer, field and scalar arithmetic once in Lean, proved it there, and had Lean print the Swift. The app builds without Lean. Twenty-eight theorems cover it. Each operation returns the exact residue for every input, and the bounds the old comments only claimed are now checked facts. Then I planted twenty bugs in the Lean version, one at a time. The proofs rejected every one, including a lost carry, the kind that got past the original tests.
-
-**Spend review** ([#248](https://github.com/winnowwallet/winnow/pull/248)). I wrote a Lean specification of the code that decides what a signer is shown before it signs a multisig spend, and had it generate 1,506 test cases. I planted 27 bugs in the Swift. The package tests caught 8, and the specification caught all 27. It also found a real bug: review crashed on a coin stored at the very top of the block-height range, which a restored backup can contain. That's already fixed in the native stack.
-
-A proof is only as good as what you trust. Here that is Lean's kernel, my model of what Swift's integer operations do, and the specification, which is my reading of what the code should do. The printer that turns Lean into Swift is checked by tests, not proved. The hand-written code around the generated arithmetic is still tested, not proved. Most of a wallet, its parsers, networking and screens, is better served by fuzzing. And neither trial says anything about timing. A correct signature can still be slow in the wrong way, so timing stays a measurement, and the last section is about how I'll make it.
+Two things in that layer matter here. Wide division in Swift is a software routine whose time depends on its inputs, so the curve never divides. And nothing in the module wipes a secret, because a plain overwrite of a buffer that's about to be freed gets optimised away, and Swift's copies leave others behind that the code can't reach.
 
 ## What fixing it takes, and how I'll know
 
 It takes branch-free arithmetic, complete point formulas, the processor's DIT flag on Apple silicon, and a read of the release assembly, because source that looks branch-free can compile to branches. Winnow's secrets also aren't wiped from memory. That's its own job, because Swift copies values freely.
+
+The proofs in [Two Implementations, Then a Proof](/blog/two-implementations/) say the arithmetic is right, not how long it takes. The Lean-generated arithmetic already drops the branch on its final subtraction, which is one step. Scalar multiplication above it still branches on the key, so these probes would still show the difference.
 
 When that's done, I'll run these two probes again. They're about 70 lines each, and the pass condition is simple: Winnow's two numbers should look like libsecp256k1's. Until then the module's limits stay in its guide, and the build stays internal.

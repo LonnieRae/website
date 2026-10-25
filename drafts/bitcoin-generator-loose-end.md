@@ -62,7 +62,7 @@ Bitcoin ran into this itself. Taproot needed a point nobody has the key for, and
 
 ## Appendix: checking it yourself
 
-[Part 2's appendix](/blog/two-implementations/#appendix-checking-it-yourself) has the point arithmetic and the halving for secp256k1 alone. This program needs the same `add` and `mul` pasted above it. They read `p` when called, so changing `p` for each curve works. It halves all four generators, scans the small fractions, and checks the Taproot point.
+The appendix to [Two Implementations, Then a Proof](/blog/two-implementations/#appendix-checking-it-yourself) has the point arithmetic and the halving for secp256k1 alone. This program needs the same `add` and `mul` pasted above it. They read `p` when called, so changing `p` for each curve works. It halves all four generators, scans the small fractions, and checks the Taproot point.
 
 SEC 2's 2010 edition gives secp192k1, secp224k1 and secp256k1. secp160k1's numbers are from the 2000 edition, via the [Standards for Elliptic Curves database](https://std.neuromancer.sk/secg/secp160k1).
 

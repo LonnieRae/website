@@ -1,8 +1,8 @@
-# Two Implementations Are Better Than One
+# Two Implementations, Then a Proof
 
 Draft — Alex Newman · October 23, 2026
 
-*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): I planted 21 bugs in Winnow's Swift curve code to see whether my tests would notice. Most of the time the fuzzer didn't. So I gave it a second implementation to argue with.*
+*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): Winnow uses its own Swift curve because a phone wallet needs about half of libsecp256k1, and the half it needs can be checked harder than a general library checks itself. I planted 21 bugs to see whether my tests would notice. A second implementation caught most of what the fuzzer missed. Then Lean proved the arithmetic for every input and wrote the Swift itself.*
 
 Winnow signs with its own Swift secp256k1. On a phone, timing leaks and stray secrets in memory aren't the worry yet. The worry is simpler: is the math right? I thought I was checking that. This is how I found out how well.
 
@@ -24,7 +24,7 @@ The [curves post](/blog/bitcoin-beyond-conspiracy-theories/) lists ten implement
 | Bouncy Castle (Java) | 8 limbs of 32 bits | Not in the source I read | I didn't look |
 | noble-curves (JavaScript) | JavaScript BigInts, in projective coordinates | "Algorithmic constant time", with caveats about JIT compilers and garbage collection | Property-based, cross-library and Wycheproof vectors, fuzzing in CI, and four audits listed between 2023 and 2026 |
 | trezor-crypto (C), a fallback in Trezor's firmware | 9 limbs of 29 bits | Not in the header I read | I didn't look |
-| Winnow (Swift) | 4 limbs of 64 bits, kept fully reduced | No. It's variable-time, which [Part 1](/blog/fuzzing-and-timing-two-wallets/) measures | Recorded vectors, a second implementation, a fuzzer, and 21 planted bugs |
+| Winnow (Swift) | 4 limbs of 64 bits, kept fully reduced | No. It's variable-time, which [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/) measures | Recorded vectors, a second implementation, a fuzzer, and 21 planted bugs |
 | Winnow Rescue (Rust) | libsecp256k1's, through rust-bitcoin | libsecp256k1's | libsecp256k1's own tests. Its nine fuzz targets don't test curve arithmetic |
 
 A few things stand out.
@@ -57,7 +57,25 @@ The savings come from features, not from the math. Winnow makes one kind of sign
 
 The parts every implementation needs don't shrink: arithmetic modulo p and modulo n, adding and doubling points with their edge cases, and the rules for which keys and tweaks are valid. That's most of Winnow's 604 lines, and it's where the planted bugs went.
 
-Doing less costs something too. On a Mac, Winnow takes 160 to 280 microseconds to derive a key and sign with it, where libsecp256k1 takes 17, and Winnow isn't constant-time, which [Part 1](/blog/fuzzing-and-timing-two-wallets/) measures. Neither matters much on a phone that signs a few times a day. Both would matter on a server.
+Doing less costs something too. On a Mac, Winnow takes 160 to 280 microseconds to derive a key and sign with it, where libsecp256k1 takes 17, and Winnow isn't constant-time, which [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/) measures. Neither matters much on a phone that signs a few times a day. Both would matter on a server.
+
+## What a phone wallet needs from libsecp256k1
+
+The same question from the library's side: how much of libsecp256k1 does each kind of Bitcoin software use? I compiled it with every module, then linked it once for each kind, keeping only the functions that software calls and letting the linker drop everything they don't reach. The shares are of its compiled code, built for 64-bit ARM and optimised for size, from libsecp256k1's main branch on 25 October 2026.
+
+| | Functions it calls | Share of the code it keeps |
+|---|---|---|
+| Bitcoin Core, everything | 55 of 82 | 97% |
+| Bitcoin Core, validating blocks and talking to peers | 14 | 73% |
+| The App Store Winnow, a compact-filter wallet | 25 | 57% |
+| Winnow Rescue, when it can sweep (planned) | 19 | 58% |
+| Winnow Rescue today | 10 | 51% |
+
+Half is the floor. Even deriving keys needs the field and group arithmetic, multiplication and SHA-256. What a wallet leaves out is protocols: ECDSA, MuSig2, silent payments, and the key exchange Bitcoin Core uses to encrypt its connections to peers.
+
+The biggest difference is a setting. All five keep the same megabyte of precomputed tables, because the library is built by default for a node that checks every signature in the chain. Built with a smaller window, the tables are 33 kilobytes, and a signature check takes 15.2 microseconds instead of 14.7 on my Mac. That 3 percent matters across hundreds of millions of signatures. A phone checks a few.
+
+So a phone wallet carries a general library to use half of it, tuned for a job it doesn't do. The half it uses is the part worth checking hardest. The rest of this essay is how I check it.
 
 ## What the first oracle caught
 
@@ -112,31 +130,47 @@ Against the same 21 bugs, the fuzzer now catches 19. The two it misses sit deep 
 
 The real module passes all of it. No real bug turned up this time. The [code is in draft pull request #246](https://github.com/winnowwallet/winnow/pull/246), as its second commit.
 
-## The state I don't keep
+## A proof, not a second opinion
 
-There's one more thing a purpose-built signer can leave out, and it matters more than any feature in that table: state.
+Two implementations catch a bug when they disagree. Neither says anything about inputs it was never given, and the carry above shows how small that gap can be. A proof covers it. You write down what the code must do, which is a specification, and a proof checker confirms that the code does it for every input. [Lean](https://lean-lang.org) is such a checker. In [draft pull request #249](https://github.com/winnowwallet/winnow/pull/249), I used it on the curve's arithmetic.
 
-Winnow's signer remembers nothing between signatures. BIP340 makes each nonce from the private key, the message and 32 fresh random bytes, so there's no counter to advance and no session to finish later. Nothing the signer needs is in a file.
+### Write it once, run it twice
 
-That's what makes the iCloud backup safe to restore. Winnow uploads an encrypted backup by default. It holds the recovery phrase, sealed with AES-256-GCM, and the public state of the wallet: its descriptor, coins, history and address counters. The signing key itself lives in the phone's keychain, set to this device only and never synced, and the app's own files are excluded from device backups. Restore an old backup on a new phone and you get the phrase back and a slightly stale view of the coins, which the next scan fixes. You can't get a signer that repeats itself, because there's nothing for it to repeat.
+The arithmetic is written once, in Lean, in a tiny language made for it. A program in that language is a straight line of steps on 64-bit words: add with a carry, subtract with a borrow, multiply into a 128-bit result, pick one of two values. It has no loops and no branches on the numbers.
 
-Stateful protocols are different. [MuSig2](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki) says it plainly: its signers "are stateful", and the same secret nonce must never sign twice, because two partial signatures made with one nonce give away the key. Picture a MuSig2 signing session that started before a backup. Restore that backup and run the session again, and the restored phone can sign with a nonce it has already used. NBitcoin and btcec ship MuSig2, and noble ships FROST, which keeps the same kind of nonce. Each leaves that bookkeeping to the app. Winnow's multisig is the script-path kind, where each signer makes an ordinary BIP340 signature, so none of this applies to it.
+Lean reads each program two ways. One reading computes with 64-bit numbers, and that's the one the proofs are about. The other prints a line of Swift for each step. That's where the 1,760 lines in `Sources/NativeSecp256k1/Generated` come from, and each file starts by saying it's generated and not to edit it. The app doesn't need Lean to build. The Swift types above keep their names and call the generated functions.
 
-### SHRINCS
+### What the proofs say
 
-[SHRINCS](https://delvingbitcoin.org/t/shrincs-324-byte-stateful-post-quantum-signatures-with-static-backups/2158) is where state stops being optional. It's a post-quantum signature scheme for Bitcoin, built only from hash functions, from Jonas Nick and Mikhail Kudinov at Blockstream Research and now a working group. It's prototype cryptography: the [draft BIP](https://groups.google.com/g/bitcoindev/c/HbVboXIFiG8) says not to use it in production.
+Lean checks 28 theorems, and none of them uses a shortcut that bypasses its kernel:
 
-Its small signatures come from one-time keys, so the signer keeps a counter of how many it has made. Reuse a count, and anyone who sees both signatures can forge a new one. In the August 2026 draft, the smallest stateful signature is 548 bytes. Every key also has a stateless fallback, and that signature is 5,777 bytes.
+- Each 256-bit add, subtract, multiply and square gives the exact answer, carry included.
+- Each field and scalar operation gives the right remainder modulo p or n, for every input it accepts.
+- The bounds the old comments only claimed, such as "the carry is at most 1", are theorems.
+- The point doubling and addition formulas match Mathlib's definition of the curve's group law, in the cases the code uses them for.
+- The fixed chains of multiplications for inverses and square roots compute a^(p−2) and a^((p+1)/4).
 
-Its answer to backups is the part that matters for Winnow. The seed is a static backup. A device restored from it marks its state as lost and signs only on the stateless path from then on, and "if in doubt", any signer can fall back to it.
+The lost carry is the test case. Put it back into the Lean program, and the theorem about adding up a column no longer goes through. I planted 20 bugs in the Lean programs, one at a time: lost carries, a wrong limb of p, a skipped reduction step, wrong steps in the point formulas and the chains. The proofs rejected all 20, 17 of them within five seconds.
 
-For Winnow that would mean three things:
+### What they don't say
 
-- The counter would have to live where the signing key lives, on the phone and nowhere else.
-- It could never go in the iCloud backup. Restoring an old copy, or the same copy on two phones, would hand out the same count twice.
-- Every phone restored from the backup would sign stateless, about ten times larger and costlier, until its coins move to a fresh key.
+A proof is only as good as what it trusts, and here the list is short enough to read:
 
-Today a purpose-built wallet can simply choose stateless signing. If Bitcoin moves to something like SHRINCS, that choice goes away, and the backup has to be designed around a counter it can't carry.
+- **Proved:** the arithmetic above, for every input.
+- **Tested, not proved:** that the printed Swift does what Lean's computing version does, and everything written by hand above the arithmetic: scalar multiplication, the generator table, keys and BIP340. Seven new tests compare the generated code with the old hand-written code and with the second implementation, on all 1,296 combinations of six awkward limb values and thousands of structured numbers.
+- **Assumed:** Lean's kernel, my description of what Swift's 64-bit operations do, that p is prime, and that the curve has no point of order 2.
+
+Two pieces are left. Proving p and n prime should take about a day. Complete point formulas, which would remove the special cases in point addition, would take a few more.
+
+### What it cost
+
+About 2,100 lines of Lean for 1,760 lines of Swift, and about two and a half hours of work. The hand-written arithmetic shrinks from 961 lines to 697. Counting lines stops making sense here: the generated Swift is longer than what it replaced, and nobody needs to read it line by line, because the proofs are what you check.
+
+It also got faster, by 23 to 31 percent. Deriving a public key went from 37.8 to 27.1 microseconds, and signing from 278 to 207. The arithmetic no longer branches on its final subtraction, and inverses and square roots use the same fixed chains libsecp256k1 does. That isn't constant time: scalar multiplication above it still branches on the key, which is what [Fuzzing and Timing Two Wallets](/blog/fuzzing-and-timing-two-wallets/) measures.
+
+### One level up
+
+The same idea works on wallet logic. In [#248](https://github.com/winnowwallet/winnow/pull/248) I wrote a Lean specification of the code that decides what a signer is shown before it signs a multisig spend, and had it generate 1,506 test cases. Of 27 bugs I planted in the Swift, the existing tests caught 8, and the specification caught all 27. It found a real bug too: review crashed on a coin stored at the very top of the block-height range, which a restored backup can carry. That one is fixed. [The State a Wallet Keeps](/blog/state-in-a-privacy-wallet/) is about why that kind of code is where proofs pay off.
 
 ## Who wrote both?
 
@@ -144,9 +178,9 @@ Claude wrote most of the curve module, with me directing, reviewing and testing 
 
 So the rules matter more, not less. The expected answer never comes from the code under test. The reference had to match vectors neither implementation wrote. The two share no arithmetic, so a shared mistake would have to be a shared misreading of the spec, which is what the published vectors and the libsecp256k1 recordings guard against. And the network is the last word: a signature Bitcoin Core accepts and a miner includes was checked by code nobody in this project wrote.
 
-Proofs beat all of it. [Verified Garbage](https://github.com/pyca/verified-garbage/tree/2fa57c651a97a18e3e1c03503b583f62db9d9e2a), an experimental library under the pyca organization, has language models write assembly and prove it correct and constant-time in Lean. My tests show agreement on the inputs I chose. A machine-checked proof covers every input, within the model it trusts.
+Proofs change the question. Claude wrote the Lean too, but a proof doesn't depend on who wrote it. Lean checks it, the way the network checks a signature. What still depends on the author is the specification, the statement of what the code should do. A model that writes both the code and the specification can make the same mistake in each, so the specifications are kept short enough to read, and planted bugs check that they actually rule something out. [Verified Garbage](https://github.com/pyca/verified-garbage/tree/2fa57c651a97a18e3e1c03503b583f62db9d9e2a), an experimental library under the pyca organization, goes further: language models write assembly and prove it correct and constant-time in Lean.
 
-Two implementations don't make either one trustworthy. They make disagreements visible. The planted bugs are how I check that the disagreements actually get looked for.
+Two implementations don't make either one trustworthy. They make disagreements visible. A proof rules out whole classes of bug, for the part it covers. The planted bugs are how I check that each of them actually looks.
 
 ## Appendix: checking it yourself
 

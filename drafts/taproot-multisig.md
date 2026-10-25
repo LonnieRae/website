@@ -1,12 +1,41 @@
-# Two Phones and a Ledger
+# Hardware Wallets, Two of Three
 
 Draft — Alex Newman · October 23, 2026
 
-*Taproot multisig in Winnow's Advanced mode: your phone, a Ledger and a trustee's phone, a way back for coins that sit still, and the recovery wallet that could help. The curve code didn't have to grow.*
+*A follow-up to [Bitcoin Beyond Conspiracy Theories](/blog/bitcoin-beyond-conspiracy-theories/): one hardware wallet is one thing to lose. Two that must both sign are safer, and twice as easy to get locked out of. Add a phone whose key iCloud can restore, ask for any two of the three, and you keep the safety without the lockout. Here's the argument, how Winnow builds it, and what isn't tested yet.*
 
 **Shelved 23 October 2026.** This replaces the MuSig2 draft. Keep it shelved until a physical Ledger has signed.
 
-Winnow's latest internal builds let you hold a coin with several signers. I'll explain how the account works, what the Ledger does, and what I haven't been able to test yet.
+Hardware wallets are good at one thing: they keep the key off your computer and show you the payment on their own screen before they sign. Most setups then waste that by depending on a single device. This is the case for a better arrangement, and for using iCloud in it.
+
+## One device is one thing to lose
+
+With one hardware wallet, the device is the key. Lose it, break it or have it stolen, and your fallback is its seed words on paper, which you have to keep as safely as the device itself. One device, one failure, and the paper is the plan.
+
+## Two that agree
+
+Put two hardware wallets in a 2-of-2, and nothing moves unless both sign, each after showing the payment on its own screen. A thief needs both devices. A bug in one device's firmware, or a screen that lies, isn't enough on its own, because the other device has to show and approve the same payment. Two devices from different makers, running different code, have to agree before a coin moves. That's the argument for two implementations of the curve, applied to signing.
+
+The problem is availability. Lose either device and the coins can't move until you go back to its seed words. A 2-of-2 doubles what you have to keep safe and halves what you can afford to lose.
+
+## A phone as the third key
+
+So add a third key and ask for any two. In Winnow, the third key is the phone's.
+
+Day to day, the phone and one hardware wallet sign, or both hardware wallets do. If a hardware wallet breaks, the phone and the other one sign. If the phone is lost, the two hardware wallets sign, and a new phone can rejoin.
+
+That new phone gets its key back from iCloud. Winnow's backup holds the phone's recovery phrase, sealed with AES-256-GCM under a key kept in iCloud Keychain, and the account's descriptor. The descriptor matters as much as the key: it's the list of every signer's public key, and without it even all three keys can't find the coins. So whoever controls your Apple account could, in principle, recover that one key.
+
+In a single-key wallet that would be a bad trade. As one key of three, it's the right one. The phone's key can't spend alone. Taking your coins would need your Apple account and one of your hardware wallets. In return, losing the phone costs nothing, losing a hardware wallet costs nothing, and nobody has to find a sheet of paper. iCloud gives up some of the secrecy of one key and buys availability for all three.
+
+## What "better" has to mean
+
+That's the claim: hardware wallets, but arranged so that losing any one thing doesn't lose the coins, and every signer checks the payment for itself. It only holds if each part does its job.
+
+- **Each signer checks.** The hardware wallet shows the payment on its screen. The phone runs its own review of the spend before it signs, and that review is held to a Lean specification in [draft pull request #248](https://github.com/winnowwallet/winnow/pull/248).
+- **The account matches Bitcoin Core.** A differential test builds 60 accounts on each of two seeds and has Core check the descriptors, addresses, signatures and every spend. More on that below.
+- **There's a way back.** An optional recovery path lets fewer signers move a coin that has sat still long enough.
+- **It's honest about what's untested.** No physical Ledger has signed yet.
 
 ## One output, one script
 
@@ -30,11 +59,11 @@ Two version numbers matter here. Version 2.1.2 signs `multi_a` leaves. A recover
 
 The internal key has to be an xpub, because BIP388 wallet policies accept only extended keys. I build it the way Liana does: BIP341's NUMS point, with the SHA-256 of the signers' keys as the chain code. Every child of that point is still unspendable.
 
-## Who holds the third key
+## A trustee instead of a second device
 
-A 2-of-3 needs three keys, and the interesting question is whose. The second phone doesn't have to be yours. It can belong to a trustee, someone you trust to help and not to spend: a relative, a friend, a lawyer.
+A 2-of-3 needs three keys, and they don't all have to be yours. One of them can sit on someone else's phone. It can belong to a trustee, someone you trust to help and not to spend: a relative, a friend, a lawyer.
 
-Day to day you sign with your phone and your Ledger, and the trustee's phone sits idle. If you lose the Ledger, your phone and the trustee's sign together. If you lose your phone, the Ledger and the trustee sign. The trustee alone can't spend, and neither can a thief with one device. The trustee joins the way the second phone does in the test notes: their phone shows its key, you build the account with it, and the descriptor goes back to them.
+Then you sign with your phone and your Ledger, and the trustee's phone sits idle. If you lose the Ledger, your phone and the trustee's sign together. If you lose your phone, the Ledger and the trustee sign. The trustee alone can't spend, and neither can a thief with one device. The trustee joins the way the second phone does in the test notes: their phone shows its key, you build the account with it, and the descriptor goes back to them.
 
 The recovery path in the next section can change that. If it lets any one of the same three signers spend alone after the delay, the trustee can spend alone after the delay too. That's a choice to make on purpose. The other mode, a separate recovery key that you keep somewhere else, gives the trustee nothing extra.
 
@@ -54,7 +83,7 @@ It's early. Only the core exists, about 11,800 lines that read words and keys, p
 
 Its [plan](https://github.com/winnowwallet/winnowrescue/blob/2ee03b5/docs/plan.md) has a later step that matters here: descriptors and wallets made elsewhere. It would discover the coins, sign where it holds a key, and otherwise build a PSBT for the device that can. For a multisig account that's the lost-phone story. Your Ledger and the trustee sign a PSBT that the recovery tool built, and the coins move to a new account. None of that is built.
 
-Rescue takes its curve from libsecp256k1, and that's on purpose. If the Swift curve in Winnow ever has a bug nobody's found, the tool that rescues coins shouldn't share it. [Part 2](/blog/two-implementations/) is about why.
+Rescue takes its curve from libsecp256k1, and that's on purpose. If the Swift curve in Winnow ever has a bug nobody's found, the tool that rescues coins shouldn't share it. [Two Implementations, Then a Proof](/blog/two-implementations/) is about why.
 
 ## An exchange as a signer
 
@@ -68,8 +97,10 @@ The harder parts are about trust. Rescue's [own design](https://github.com/winno
 
 Bitcoin Core 31.1 produced the checksums and addresses for four timelocked descriptors, and the tests compare against those. In the signet journey in the 0.8.10 release run, Core cosigns a 2-of-2 spend. After a three-block delay, it accepts and mines a spend that the phone signs alone through the recovery leaf.
 
+A differential test now holds the accounts to Bitcoin Core on a throwaway regtest node ([#250](https://github.com/winnowwallet/winnow/pull/250)). For accounts of two to five signers, Core checks the descriptor checksum, the first addresses and which signatures a spend carries. Every exact set of k signers has to finish a spend that Core accepts and mines, k − 1 must not, and the recovery lock has to open in exactly the right block. Sixty accounts on each of two seeds ran 2,198 and 2,298 checks with no disagreement. It found one bug first: the same signers listed in a different order built a different account. The builder now writes keys in one order. The test needs `bitcoind`, so it runs by hand, not in CI.
+
 Nothing has been signed on a physical Ledger yet. The Ledger tests use Ledger's own policy and address vectors and a software Ledger I wrote from the same documentation, and a fuzz target feeds the client hostile frames, commands and signatures. Agreeing with the simulator proves little: it shows the phone's client is consistent, not that the device agrees. The next test is a Nano X on signet, by hand.
 
 ## Where it stands
 
-Two draft pull requests carry this. [#246](https://github.com/winnowwallet/winnow/pull/246) is the native curve, the multisig accounts, the recovery leaf and a fuzz oracle, proposed to Winnow's main branch. Merging it would make this the App Store build, and it would take MuSig2 savings, vaults and cosigner cards out of the shipping app, so that trade has to be decided first. [#247](https://github.com/winnowwallet/winnow/pull/247) is the Ledger signer alone, one commit on top of #246 and split out so #246 can be reviewed and landed without it. Merge #246 first. #247 waits for a Nano X to sign.
+Two draft pull requests carry this. [#246](https://github.com/winnowwallet/winnow/pull/246) is the native curve, the multisig accounts, the recovery leaf, a fuzz oracle and the Core differential, proposed to Winnow's main branch. Merging it would make this the App Store build, and it would take MuSig2 savings, vaults and cosigner cards out of the shipping app, so that trade has to be decided first. [#247](https://github.com/winnowwallet/winnow/pull/247) is the Ledger signer alone, one commit on top of #246 and split out so #246 can be reviewed and landed without it. Merge #246 first. #247 waits for a Nano X to sign.
