@@ -8,7 +8,7 @@ Doing startups is mostly counterintuitive. Who starts a captcha company in 2017?
 
 This one was about Winnow, my Bitcoin wallet for the iPhone. It's written in Swift. It learns about the chain from compact block filters, so it never hands a server its addresses. It backs its key up to iCloud automatically. The question I couldn't let go of was simple: what does a phone that holds bitcoin actually need? Asking it from the start led to three bets, each against something people in Bitcoin usually say.
 
-## Bet one: a hardware wallet shouldn't sign alone
+## Bet one: Everyone is doing hardware wallets wrong
 
 The usual advice is one hardware wallet and its seed words on paper. That's one device to lose, one sheet of paper to keep safe, and one implementation to trust. I think keys work better in two layers.
 
