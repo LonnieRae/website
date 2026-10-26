@@ -10,7 +10,19 @@ This one was about Winnow, my Bitcoin wallet for the iPhone. It's written in Swi
 
 ## Bet one: Everyone is doing hardware wallets wrong
 
-The usual advice is one hardware wallet and its seed words on paper. That's one device to lose, one sheet of paper to keep safe, and one implementation to trust. I think keys work better in two layers.
+The usual advice is one hardware wallet and its seed words on paper. That's one device to lose, one sheet of paper to keep safe, and one implementation to trust. People defend it by pointing at the chip. I think the chip is the wrong thing to value in a hardware wallet.
+
+### What a hardware wallet is for
+
+When I bring up defense in depth, people either don't see what's possible or they start talking about the chip: the secure element, the trusted enclave, hardware you're supposed to be able to trust. That isn't what a hardware wallet is good for.
+
+It's good for being a separate implementation. Different code, on a different device, from a different maker, that nothing on your phone can reach. That's a real second layer, and it's the reason to own one. It's also why it belongs in a bank vault. It's cold storage: offline, out of reach, fetched when you need it.
+
+The chip isn't the advantage, because chips get opened. [Kraken's researchers](https://blog.kraken.com/post/3662/kraken-identifies-critical-flaw-in-trezor-hardware-wallets) pulled the encrypted seed out of a Trezor One and a Model T in about 15 minutes with the device in hand, by glitching its power, and then guessed the PIN. Five years later Ledger's research team [found a way into the memory of a Trezor Safe 3](https://www.theblock.co/post/346018/trezor-discloses-vulnerability-safe-3-crypto-wallet-rival-ledger) the same way, after desoldering its microcontroller. Both attacks need the device and real skill. That's the point. If the hardware can come from someone who isn't on your side, or end up in their hands, the answer isn't a better chip. It's a second signer.
+
+And in person, a hardware wallet protects you less than a phone does. An iPhone's Secure Enclave [enforces the delays after wrong passcodes itself](https://support.apple.com/guide/security/passcodes-and-passwords-sec20230a10d/web), up to eight hours, and can erase the phone after ten wrong tries if you turn that on. It checks your face or your fingerprint, and it's in your pocket. A Trezor [wipes after sixteen wrong PINs](https://trezor.io/learn/a/pin-protection-on-trezor-devices), ten on the newest model, and the older ones have no hardware rate limit. Ledger and Trezor don't check your face or your fingerprint.
+
+So I want both, each doing what it's good at. The hardware wallet is a separate implementation that lives in a vault, and the phone is what protects you in person. I think keys work better in two layers.
 
 ### Layer one: your own keys
 
