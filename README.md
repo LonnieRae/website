@@ -43,8 +43,9 @@ manifest, captioned by the `screenshots` entries in `docs/journeys.json`. When
 the fetch fails it says why and the committed reference media are published.
 The wallet's CI sends a `wallet-journey` dispatch when its main passes, and a
 daily build catches anything missed. The fetch reads `WALLET_ARTIFACTS_TOKEN`
-(fine-grained, `winnowwallet/winnow` only, Actions: read), falling back to the
-workflow's own token, which can read a public repository's artifacts.
+(fine-grained, `winnowwallet/winnow` only, Actions: read). Without it the fetch
+tries the workflow's own token, which may not be allowed to read another
+repository's artifacts; then the committed media are published.
 
 The wallet retains offline guide snapshots. A website deploy does not change a
 released app; copy reviewed guide changes into the app separately.
