@@ -32,6 +32,20 @@ The site checks screenshots against that read-only snapshot without running app
 tests or claiming new test results. Recordings retain their original provenance.
 Website source was extracted from wallet commit 7751cfd30f5e1b108fcfe322db38b76948a0bb1d.
 
+CI builds take the wallet's newest UI-journey media instead, when they can.
+`scripts/fetch-journey-media` downloads the `journey-media` artifact of the
+newest successful `ci.yml` run on the wallet's main, checks every file against
+its `journey-provenance.json` (version 2: run, commit, device, each test's
+result), and writes the screenshots, `videos/wallet-journey.mp4` and the
+manifest over the committed media in the CI workspace only; never commit them.
+`scripts/build-site` then builds the gallery, hero and recording page from the
+manifest, captioned by the `screenshots` entries in `docs/journeys.json`. When
+the fetch fails it says why and the committed reference media are published.
+The wallet's CI sends a `wallet-journey` dispatch when its main passes, and a
+daily build catches anything missed. The fetch reads `WALLET_ARTIFACTS_TOKEN`
+(fine-grained, `winnowwallet/winnow` only, Actions: read), falling back to the
+workflow's own token, which can read a public repository's artifacts.
+
 The wallet retains offline guide snapshots. A website deploy does not change a
 released app; copy reviewed guide changes into the app separately.
 

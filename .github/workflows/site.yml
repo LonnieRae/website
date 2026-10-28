@@ -3,6 +3,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  # the wallet's CI asks for a build when main passes (client_payload.run_id names its run)
+  repository_dispatch:
+    types: [wallet-journey]
+  # and a daily build picks up any run a dispatch missed
+  schedule:
+    - cron: '41 6 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,10 +23,21 @@ jobs:
         with:
           lfs: true
           persist-credentials: false
-      - name: Validate site and historical evidence
+      - name: Validate the committed site and historical evidence
         run: |
           python3 -m unittest discover -s scripts/tests
           scripts/build-site --check
+      # The wallet's newest journey media replace the committed (LFS) ones in this workspace only; on any
+      # failure the committed media stay. Then the pages are rebuilt from whichever media are here.
+      - name: Take the wallet's UI-journey media from its CI
+        env:
+          WALLET_ARTIFACTS_TOKEN: ${{ secrets.WALLET_ARTIFACTS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.client_payload.run_id }}
+        run: scripts/fetch-journey-media --run-id "$RUN_ID"
+      - name: Build and check the published site
+        run: |
+          scripts/build-site
           scripts/check-site
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
