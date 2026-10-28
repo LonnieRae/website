@@ -41,11 +41,11 @@ manifest over the committed media in the CI workspace only; never commit them.
 `scripts/build-site` then builds the gallery, hero and recording page from the
 manifest, captioned by the `screenshots` entries in `docs/journeys.json`. When
 the fetch fails it says why and the committed reference media are published.
-The wallet's CI sends a `wallet-journey` dispatch when its main passes, and a
-daily build catches anything missed. The fetch reads `WALLET_ARTIFACTS_TOKEN`
-(fine-grained, `winnowwallet/winnow` only, Actions: read). Without it the fetch
-tries the workflow's own token, which may not be allowed to read another
-repository's artifacts; then the committed media are published.
+The wallet repository is public and sends nothing here: the site workflow runs
+every six hours (and on push), lists the wallet's runs without a token, and
+downloads the artifact with its own `GITHUB_TOKEN`, since GitHub serves artifact
+zips only to authenticated requests. A scheduled build deploys only when the
+fetched manifest's commit differs from the one winnowwallet.com shows.
 
 The wallet retains offline guide snapshots. A website deploy does not change a
 released app; copy reviewed guide changes into the app separately.

@@ -82,7 +82,7 @@ class FetchTests(unittest.TestCase):
         (self.docs / fetch.VIDEO).write_bytes(b"committed recording")
 
     def args(self, run_id=None, strict=False):
-        return fetch.argparse.Namespace(repo=REPO, branch="main", workflow="ci.yml", run_id=run_id, wait=0,
+        return fetch.argparse.Namespace(repo=REPO, branch="main", workflow="ci.yml", run_id=run_id,
                                         out=self.docs, strict=strict)
 
     def test_newest_successful_run_with_the_artifact_is_placed(self):
@@ -95,13 +95,13 @@ class FetchTests(unittest.TestCase):
         self.assertEqual((self.docs / "screenshots/04-home-funded.png").read_bytes(), b"\x89PNG\r\n\x1a\nsecond")
         self.assertEqual(json.loads((self.docs / fetch.MANIFEST).read_text())["version"], 2)
 
-    def test_the_dispatched_run_comes_first(self):
+    def test_a_named_run_comes_first(self):
         client = FakeClient({9: run(9), 7: run(7)}, {9: [artifact(90)], 7: [artifact(70)]},
                             {"https://api.github.com/artifacts/70/zip": artifact_zip(7)})
         fetch.fetch(client, self.args(run_id=7))
         self.assertEqual(client.calls[0], f"/repos/{REPO}/actions/runs/7")
 
-    def test_a_dispatched_run_on_another_branch_falls_back_to_main(self):
+    def test_a_named_run_on_another_branch_falls_back_to_main(self):
         client = FakeClient({9: run(9), 5: run(5, branch="feature")}, {9: [artifact(90)], 5: [artifact(50)]},
                             {"https://api.github.com/artifacts/90/zip": artifact_zip(9)})
         evidence = fetch.fetch(client, self.args(run_id=5))
@@ -149,7 +149,8 @@ class FetchTests(unittest.TestCase):
                                          "screenshots/04-home-funded.png", fetch.VIDEO])
 
     def test_failure_keeps_the_committed_media_and_exits_0_unless_strict(self):
-        with mock.patch.dict(fetch.os.environ, {"WALLET_ARTIFACTS_TOKEN": "", "GITHUB_TOKEN": ""}), \
+        failing = mock.Mock(side_effect=fetch.urllib.error.URLError("offline"))
+        with mock.patch.object(fetch, "fetch", failing), \
                 mock.patch.object(fetch.sys, "stderr", io.StringIO()) as stderr:
             self.assertEqual(fetch.main(["--out", str(self.docs)]), 0)
             self.assertIn("keeping the committed media", stderr.getvalue())
@@ -157,9 +158,9 @@ class FetchTests(unittest.TestCase):
         self.assertEqual((self.docs / fetch.VIDEO).read_bytes(), b"committed recording")
         self.assertFalse((self.docs / fetch.MANIFEST).exists())
 
-    def test_an_empty_dispatched_run_id_means_none(self):
+    def test_an_empty_run_id_means_none(self):
         with mock.patch.object(fetch, "fetch") as fetched, \
-                mock.patch.dict(fetch.os.environ, {"WALLET_ARTIFACTS_TOKEN": "t"}):
+                mock.patch.dict(fetch.os.environ, {"GITHUB_TOKEN": "t"}):
             fetch.main(["--run-id", "", "--out", str(self.docs)])
         self.assertIsNone(fetched.call_args[0][1].run_id)
 
@@ -181,6 +182,47 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(seen[0].unredirected_hdrs.get("Authorization"), "Bearer secret")
         self.assertNotIn("Authorization", seen[0].headers)
 
+
+    def test_without_a_token_the_listing_is_anonymous_and_the_download_refused(self):
+        seen = []
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def urlopen(request, timeout):
+            seen.append(request)
+            return Response(b"{}")
+        client = fetch.Client(None)
+        with mock.patch.object(fetch.urllib.request, "urlopen", urlopen):
+            client.json("/repos/x/y")
+            with self.assertRaisesRegex(fetch.Unusable, "authenticated request"):
+                client.download("https://api.github.com/artifacts/1/zip")
+        self.assertEqual(len(seen), 1)
+        self.assertNotIn("Authorization", seen[0].unredirected_hdrs)
+
+    def test_a_refused_token_retries_the_listing_without_it(self):
+        seen = []
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def urlopen(request, timeout):
+            seen.append(request)
+            if "Authorization" in request.unredirected_hdrs:
+                raise fetch.urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO())
+            return Response(b'{"ok": true}')
+        with mock.patch.object(fetch.urllib.request, "urlopen", urlopen), \
+                mock.patch.object(fetch.sys, "stdout", io.StringIO()):
+            self.assertEqual(fetch.Client("token").json("/repos/x/y"), {"ok": True})
+        self.assertEqual(len(seen), 2)
 
 if __name__ == "__main__":
     unittest.main()

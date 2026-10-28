@@ -3,12 +3,9 @@ on:
   pull_request:
   push:
     branches: [main]
-  # the wallet's CI asks for a build when main passes (client_payload.run_id names its run)
-  repository_dispatch:
-    types: [wallet-journey]
-  # and a daily build picks up any run a dispatch missed
+  # every six hours: the wallet's newest journey media (its repository is public; it sends nothing here)
   schedule:
-    - cron: '41 6 * * *'
+    - cron: '41 */6 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,6 +15,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    outputs:
+      deploy: ${{ steps.deploy.outputs.deploy }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -31,14 +30,30 @@ jobs:
       # failure the committed media stay. Then the pages are rebuilt from whichever media are here.
       - name: Take the wallet's UI-journey media from its CI
         env:
-          WALLET_ARTIFACTS_TOKEN: ${{ secrets.WALLET_ARTIFACTS_TOKEN }}
+          # the workflow's own token: GitHub serves artifact zips only to authenticated requests
           GITHUB_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.client_payload.run_id }}
-        run: scripts/fetch-journey-media --run-id "$RUN_ID"
+        run: scripts/fetch-journey-media
       - name: Build and check the published site
         run: |
           scripts/build-site
           scripts/check-site
+      # A scheduled build deploys only new wallet media: a manifest whose commit is not the deployed one's.
+      - name: Decide whether to deploy
+        id: deploy
+        run: |
+          sha() { python3 -c 'import json, sys; print(json.load(sys.stdin).get("source_sha") or "")' 2>/dev/null; }
+          new=$( [ -f docs/journey-provenance.json ] && sha < docs/journey-provenance.json || true)
+          if [ "$GITHUB_EVENT_NAME" != schedule ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$new" ]; then
+            echo "::notice::no wallet journey media were fetched; nothing new to deploy"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif [ "$new" = "$(curl -fsSL https://winnowwallet.com/journey-provenance.json | sha || true)" ]; then
+            echo "::notice::winnowwallet.com already shows the journey media of $new"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: website
@@ -46,7 +61,7 @@ jobs:
           if-no-files-found: error
   deploy:
     needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.check.outputs.deploy == 'true'
     runs-on: ubuntu-24.04
     environment:
       name: website
