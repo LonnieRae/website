@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Take the wallet's newest UI-journey media from its CI into docs/, for this build only.
 
-  scripts/fetch-journey-media [--repo winnowwallet/winnow] [--branch main] [--workflow ci.yml]
+  scripts/fetch-journey-media [--repo winnowwallet/winnow-lean] [--branch main] [--workflow ci.yml]
                               [--run-id ID] [--out docs] [--strict]
 
 Finds the newest successful run of the wallet's workflow on the branch that still has a `journey-media`
@@ -219,7 +219,7 @@ def fetch(client, args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--repo", default="winnowwallet/winnow")
+    parser.add_argument("--repo", default="winnowwallet/winnow-lean")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--workflow", default="ci.yml")
     parser.add_argument("--run-id", type=lambda value: int(value) if value else None,
