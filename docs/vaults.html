@@ -19,7 +19,7 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow">GitHub ↗</a></nav></div></header>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header>
 <main id="main">
 <h1>Shared wallets</h1>
 <p class="lede">Choose who must approve, back up every key, then fund the account.</p>
@@ -52,6 +52,7 @@
 <ol>
 <li>Open the account and choose <strong>Back up this wallet</strong>. Keep the file: it includes account setup, address positions, and tracked funds.</li>
 <li>Keep the phone's recovery words separately. Every other signer needs its own key backup.</li>
+<li>Recovery words restore the wallet, not this account. Only the backup file or the iCloud copy brings shared accounts back.</li>
 <li>Make a fresh wallet backup after setting up an account and keep it current. Older files may omit shared accounts.</li>
 </ol>
 <p>The default wallet export excludes recovery words. An export made with <strong>Include recovery phrase</strong> contains the phone's signing secret; protect it accordingly.</p>

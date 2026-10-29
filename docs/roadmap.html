@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Roadmap — Winnow</title>
-<meta name="description" content="Current work, next milestones, and research proposals with clear readiness conditions.">
+<meta name="description" content="The Lean 4 rewrite, current limits, and research proposals with clear readiness conditions.">
 <link rel="canonical" href="https://winnowwallet.com/roadmap">
 <link rel="stylesheet" href="site.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/research/">Research</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow">GitHub ↗</a></nav></div></header>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/research/">Research</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header>
 <main id="main">
 <h1>Roadmap</h1>
 <p class="lede">A smaller wallet, clearer recovery, and evidence before new claims.</p>
@@ -18,9 +18,14 @@
 <nav class="contents" aria-label="On this page"><a href="#now">Now</a><a href="#next">Earlier proposals</a><a href="#research">Research</a></nav>
 
 <section id="now">
-<h2>Now · Make the core easier to use and maintain</h2>
+<h2>Now · Winnow in Lean 4</h2>
+<p>Winnow has been rewritten in Lean 4, in the public <a href="https://github.com/winnowwallet/winnow-lean">winnow-lean repository</a>. Version 0.9 on <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a> compiles the wallet and its screens from Lean to native code and draws them with standard iOS controls. There is no Swift in it. It installs over the App Store’s Swift app and keeps the wallet, receive labels and iCloud backup.</p>
+<p>Multisig is a Taproot script-path k-of-n account. <strong>Create an account</strong> picks who signs: this phone, a Ledger paired under Settings → Signers, and keys someone sent. An optional recovery path lets fewer signers, or a separate key, spend a coin that has not moved for a chosen delay. MuSig2 accounts and Bitcoin Core cosigners were removed in 0.8.13. On 26 October 2026 a Ledger Nano X co-signed <a href="https://mempool.space/tx/6d2b391e7bdabcb69a133e49ae40ee54f956be8057edc7974742ad3a0d85c589">a mainnet 2-of-2 spend</a>.</p>
+<p>Recovery words restore the wallet, not shared accounts. Keep a backup file or the iCloud backup for those; <a href="/import#cannot-restore">what a backup cannot restore</a> lists the rest.</p>
+<p>A known limit being worked on: the phone’s key in shared accounts, and on its person card, is the everyday wallet’s BIP86 account key, so co-signers can see the personal wallet’s history.</p>
+<h3 id="maintain">Make the core easier to use and maintain</h3>
 <p>Remove redundant code and tests, shorten the guides, and make recovery limits explicit. Keep focused checks for cryptography, hostile inputs, and recovery failures.</p>
-<p>One recorded iPhone journey covers an ordinary send, MuSig2 receive/send, and script-path 2-of-3 receive/send with Bitcoin Core cosigners. The private signet fixture mines automatically for prompt confirmation. That successful flow complements lower-level tests; it does not establish every failure case. <a href="/recording">Inspect the current recording and source →</a></p>
+<p>The recording and screenshots on this site still come from the earlier Swift app: an ordinary send, a MuSig2 2-of-2 and a 2-of-3 with Bitcoin Core cosigners, on a private signet. MuSig2 and the Core cosigners have since been removed. That successful flow complements lower-level tests; it does not establish every failure case. <a href="/recording">Inspect the recording and its source →</a></p>
 </section>
 
 <section id="next">
@@ -35,11 +40,11 @@
 
 <section id="research">
 <h2>Research and earlier proposals</h2>
-<p><a href="/research/">Research at Winnow</a> covers native Swift cryptography, Winnow Rescue, P2MR, existing hardware wallets, Silent Payments, and thresholds and timelocks. Each project records its motivation, current evidence, and next experiment. The <a href="/research/first-pass/">first-pass record</a> distinguishes protocol fixtures and recovery models from the newer native-wallet branches. The additional proposals below retain their own status; research does not make them supported features or automatic upgrades.</p>
+<p><a href="/research/">Research at Winnow</a> covers Winnow Rescue, P2MR, existing hardware wallets, Silent Payments, and thresholds and timelocks. Each project records its motivation, current evidence, and next experiment. The native Swift curve work there is set aside: the Swift app stayed on libsecp256k1, and the wallet has since moved to Lean. The <a href="/research/first-pass/">first-pass record</a> distinguishes protocol fixtures and recovery models from later wallet work. The additional proposals below retain their own status; research does not make them supported features or automatic upgrades.</p>
 <h3 id="safe">An optional P2WSH Safe · Earlier proposal</h3>
 <p>A separate, opt-in storage choice. It must demonstrate creation, receiving, backup, restoration on another installation, and withdrawal, including fresh change, exposure tracking, and refusal of damaged or incomplete backups. Limitations must be clear before funding. This proposal does not provide full post-quantum signing.</p>
 <h3 id="signing-partners">Signing devices and independent cosigners</h3>
-<p>The <a href="/research/#hardware-wallets">hardware-wallet research section</a> describes the current simulator evidence and the next physical-device experiment. Independent professional-cosigner arrangements remain separate proposals.</p>
+<p>A Ledger Nano X is a supported signer and has co-signed a mainnet spend. The <a href="/research/#hardware-wallets">hardware-wallet research section</a> describes the earlier simulator evidence. Independent professional-cosigner arrangements remain separate proposals.</p>
 <p>Prove compatibility with the exact script, derivation, receiving address, signing exchange, and recovery process. Hardware evidence must identify the model, firmware, coordinator, and tested revision. Define who controls keys and backups, who can spend without the owner, and what happens when approval is refused or unavailable.</p>
 <p>Winnow has no verified professional-cosigner or lending integration. Trusts, inheritance, and collateral arrangements need legal authority and key access to agree; Bitcoin only checks signatures. In a borrower–lender–key-agent 2-of-3, the lender and key agent could spend without the borrower. A label or signed statement cannot enforce repayment, succession, delay, or protection from coercion.</p>
 <h3 id="private-transports">Tor and I2P</h3>

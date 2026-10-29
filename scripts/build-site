@@ -22,7 +22,7 @@ ACTS = [
         ("08-send-confirmed", "Confirmed on Bitcoin"),
         ("09-home-after-send", "History keeps the receipt"),
     ]),
-    ("Two devices, one signature", [
+    ("Two keys, both sign", [
         ("35-extra-device-policy", "Both keys required"),
         ("36-extra-device-review", "Review the payment"),
         ("37-extra-device-waiting", "Waiting for the second key"),
@@ -112,11 +112,11 @@ def recorded_run():
 
 def homepage(journeys, cases):
     title = "Winnow — Bitcoin, on your terms"
-    intro = "A Bitcoin wallet for your iPhone. Pay from your phone, add a second key, or share a wallet."
+    intro = "A Bitcoin wallet for your iPhone. Pay from your phone, add a Ledger as a second key, or share a wallet with a way back after a delay."
     modes = [
         ("everyday", "Everyday", "You approve", "56-home-beginner", "Your everyday wallet", "One key. One decision.", "Receive, review, send. All from your phone.", "1 key · 1 signature", 1, 1),
-        ("both", "Both keys", "2 of 2", "40-extra-device-confirmed", "Two keys, both required", "Two keys. One signature.", "Your phone and a second signer both approve.", "MuSig2 · 1 signature", 2, 2),
-        ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Shared savings", "Two approve. One can be away.", "Any two owners can approve a payment.", "2-of-3 · 2 signatures", 3, 2),
+        ("both", "Both keys", "2 of 2", "40-extra-device-confirmed", "Two keys, both required", "Two keys. Both sign.", "Your phone and a Ledger both approve each payment.", "2-of-2 · 2 signatures", 2, 2),
+        ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Shared savings", "Two approve. One can be away.", "Any two owners can approve a payment. Add a recovery path that opens after a delay.", "2-of-3 · 2 signatures", 3, 2),
     ]
     choices, policies, screens = [], [], []
     for index, (key, name, rule, shot, caption, heading, description, technical, keys, needed) in enumerate(modes):
@@ -141,14 +141,14 @@ def homepage(journeys, cases):
 </head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header wrap"><a class="brand" href="/" aria-label="Winnow home"><span class="brand-icon" aria-hidden="true">₿</span> winnow</a>
-<nav aria-label="Main"><a href="https://census.winnowwallet.com/">Census</a><a href="https://census.winnowwallet.com/health/">Network health</a><a href="https://compare.winnowwallet.com/">Compare</a><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="https://github.com/winnowwallet/winnow">GitHub <span aria-hidden="true">↗</span></a></nav></header>
+<nav aria-label="Main"><a href="https://census.winnowwallet.com/">Census</a><a href="https://census.winnowwallet.com/health/">Network health</a><a href="https://compare.winnowwallet.com/">Compare</a><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub <span aria-hidden="true">↗</span></a></nav></header>
 <main id="main" class="wrap">
 <section class="hero" aria-labelledby="hero-title">
 <div class="hero-copy"><p class="eyebrow"><span></span> A BITCOIN WALLET FOR IPHONE</p>
 <h1 id="hero-title">Your bitcoin.<br>Your choice<br><em>of control.</em></h1>
-<p class="intro">Pay from your phone, add a second key,<br class="desktop-break"> or share a wallet.</p>
+<p class="intro">Pay from your phone, add a Ledger,<br class="desktop-break"> or share a wallet.</p>
 <div class="actions"><a class="download" href="https://apps.apple.com/app/id6801502501">Download for iPhone <span aria-hidden="true">↗</span></a><a class="watch" href="/recording" data-watch><span class="play-icon" aria-hidden="true">▶</span> Watch it work</a></div>
-<p class="availability">Open source <span>·</span> Early access <span>·</span> <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a></p>
+<p class="availability">Open source <span>·</span> Early access <span>·</span> <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a> (0.9, rewritten in Lean 4)</p>
 <fieldset class="mode-picker"><legend>Choose who signs</legend><div class="mode-options">{"".join(choices)}</div></fieldset>
 <div class="policies" aria-live="polite">{"".join(policies)}</div></div>
 <div class="product-stage"><div class="stage-heading"><span>THE ACTUAL APP</span><span class="stage-dot" aria-hidden="true"></span><span>RECORDED ON SIGNET</span></div>
@@ -156,14 +156,14 @@ def homepage(journeys, cases):
 <a class="stage-link" href="/recording" data-watch><span class="play-icon" aria-hidden="true">▶</span> See the full journey <span aria-hidden="true">↗</span></a></div>
 </section>
 <section class="proof" aria-labelledby="proof-title"><div class="proof-heading"><p class="eyebrow">SEE FOR YOURSELF</p><h2 id="proof-title">One wallet. Three ways to pay.</h2></div>
-<div class="journey-path" aria-label="Recorded journey: ordinary send, MuSig2 receive and send, then 2-of-3 receive and send"><span><b>01</b> Everyday</span><i aria-hidden="true">→</i><span><b>02</b> Both keys</span><i aria-hidden="true">→</i><span><b>03</b> Any two</span></div>
-<p class="provenance-note">Real payments on private signet. Shared accounts use Bitcoin Core cosigners. <a href="/recording">Recording &amp; source ↗</a></p>
+<div class="journey-path" aria-label="Recorded journey: ordinary send, 2-of-2 receive and send, then 2-of-3 receive and send"><span><b>01</b> Everyday</span><i aria-hidden="true">→</i><span><b>02</b> Both keys</span><i aria-hidden="true">→</i><span><b>03</b> Any two</span></div>
+<p class="provenance-note">Real payments on private signet, recorded with the earlier Swift app. <a href="/recording">Recording &amp; source ↗</a></p>
 {recorded_run()}</section>
 </main>
 <footer class="wrap"><p class="footer-brand">winnow<span>Your phone connects directly to Bitcoin.</span></p><nav aria-label="Footer"><a href="/vaults">Shared wallets</a><a href="/roadmap">Roadmap</a><a href="/privacy">Privacy</a></nav></footer>
 <dialog id="journey-dialog" aria-labelledby="video-title"><div class="dialog-bar"><h2 id="video-title">The wallet, in action.</h2><form method="dialog"><button autofocus aria-label="Close recording">Close <span aria-hidden="true">×</span></button></form></div>
-<video controls playsinline preload="none" poster="/screenshots/56-home-beginner.png" aria-label="Ordinary, MuSig2, and 2-of-3 payments in Winnow"><source src="/{VIDEO_PATH}" type="video/mp4"><a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.</video>
-<p>Private signet · Bitcoin Core cosigners · <a href="/recording">Recording provenance</a></p></dialog>
+<video controls playsinline preload="none" poster="/screenshots/56-home-beginner.png" aria-label="Ordinary, 2-of-2, and 2-of-3 payments in Winnow"><source src="/{VIDEO_PATH}" type="video/mp4"><a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.</video>
+<p>Private signet · earlier Swift app · <a href="/recording">Recording provenance</a></p></dialog>
 </body></html>
 '''
 
@@ -186,7 +186,7 @@ def recording_page(root):
 <title>Wallet journey — Winnow</title><link rel="stylesheet" href="/site.css">
 <style>video{{display:block;width:min(100%,26rem);max-height:75vh;margin:1.5rem auto;border:1px solid var(--rule);border-radius:1rem;background:#111}}</style></head>
 <body><a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow">GitHub ↗</a></nav></div></header><main id="main"><p class="page-kicker">Recorded in the real app</p><h1>Wallet journey</h1>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header><main id="main"><p class="page-kicker">Recorded in the real app</p><h1>Wallet journey</h1>
 <video controls playsinline preload="metadata" poster="/screenshots/56-home-beginner.png" aria-label="Ordinary and shared-account payments in Winnow">
 <source src="/{VIDEO_PATH}" type="video/mp4">
 <a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.

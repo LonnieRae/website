@@ -121,7 +121,7 @@
       "Use Advanced for recovery words, manual exports or disabling cloud backup. Without iCloud, keep a combined manual history-and-key file for spending recovery."
     ],
     "tests": [],
-    "limitations": "Automatic updates wait for pending payments to confirm. Cloud and Keychain synchronization can be delayed. Other owners’ signing keys are not included. Older cloud copies may lack names and labels."
+    "limitations": "Automatic updates wait for pending payments to confirm. Cloud and Keychain synchronization can be delayed. Other owners’ signing keys are not included. Older cloud copies may lack names and labels. Recovery words alone restore the wallet but not shared multisig accounts; those come back only from a backup file or the iCloud copy."
   },
   {
     "id": "controls",

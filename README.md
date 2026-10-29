@@ -1,7 +1,9 @@
 # Winnow website
 
 The website, public documentation, and blog for https://winnowwallet.com.
-The wallet app lives in [winnowwallet/winnow](https://github.com/winnowwallet/winnow).
+The wallet app lives in [winnowwallet/winnow-lean](https://github.com/winnowwallet/winnow-lean),
+its Lean 4 rewrite. The earlier Swift app, whose recordings and screenshots
+this site still shows, is in [winnowwallet/winnow](https://github.com/winnowwallet/winnow).
 
 ## Work on the site
 
