@@ -52,8 +52,11 @@ released app; copy reviewed guide changes into the app separately.
 
 ## Deployment
 
-Pull requests validate the website and upload a review artifact. Main deploys
-only `docs/` to the existing Cloudflare Pages project `winnow`. The `website`
+Pull requests validate the website; nothing is uploaded. Main deploys only
+`docs/` to the existing Cloudflare Pages project `winnow`: the deploy job checks
+out the commit, takes the journey media and builds the site itself, rather than
+receiving it as an artifact, so the private repository's artifact storage quota
+cannot stop a deploy. The `website`
 environment requires `CF_API_TOKEN` and `CF_ACCOUNT_ID`. Set its deployment
 branch policy to main. Validation receives no deployment secrets.
 
