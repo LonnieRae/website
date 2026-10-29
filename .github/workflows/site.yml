@@ -16,7 +16,7 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     outputs:
-      deploy: ${{ steps.deploy.outputs.deploy }}
+      deploy: ${{ steps.decide.outputs.deploy }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -39,7 +39,7 @@ jobs:
           scripts/check-site
       # A scheduled build deploys only new wallet media: a manifest whose commit is not the deployed one's.
       - name: Decide whether to deploy
-        id: deploy
+        id: decide
         run: |
           sha() { python3 -c 'import json, sys; print(json.load(sys.stdin).get("source_sha") or "")' 2>/dev/null; }
           new=$( [ -f docs/journey-provenance.json ] && sha < docs/journey-provenance.json || true)
@@ -54,11 +54,9 @@ jobs:
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: website
-          path: docs/
-          if-no-files-found: error
+  # The deploy builds the site again in its own workspace rather than receiving the check's as an
+  # artifact, so the private repository's artifact storage quota cannot stop a deploy. It deploys only
+  # what it built and checked itself.
   deploy:
     needs: check
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.check.outputs.deploy == 'true'
@@ -69,10 +67,23 @@ jobs:
     steps:
       - name: Prepare deployment tool
         run: printf '{"private":true}\n' > package.json
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          name: website
-          path: site
+          lfs: true
+          persist-credentials: false
+          path: source
+      - name: Take the wallet's UI-journey media from its CI
+        working-directory: source
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: scripts/fetch-journey-media
+      - name: Build and check the published site
+        working-directory: source
+        run: |
+          scripts/build-site
+          scripts/check-site
+      - name: The site to deploy
+        run: mv source/docs site && rm -rf source
       - name: Deploy Winnow website
         id: deploy
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0
