@@ -3,94 +3,126 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Shared wallets &mdash; Winnow</title>
-<meta name="description" content="Choose who signs, set up a shared account, back up every key, and review payments with Bitcoin Core cosigners.">
+<title>Multisig accounts &mdash; Winnow</title>
+<meta name="description" content="k-of-n Taproot accounts in Advanced mode: pair a Ledger, save other people's keys, create or join an account, add a recovery path, and back it up.">
 <link rel="canonical" href="https://winnowwallet.com/vaults">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://winnowwallet.com/vaults">
-<meta property="og:title" content="Shared wallets &mdash; Winnow">
-<meta property="og:description" content="Choose who signs, set up a shared account, back up every key, and review payments with Bitcoin Core cosigners.">
+<meta property="og:title" content="Multisig accounts &mdash; Winnow">
+<meta property="og:description" content="k-of-n Taproot accounts in Advanced mode: pair a Ledger, save other people's keys, create or join an account, add a recovery path, and back it up.">
 <meta property="og:image" content="https://winnowwallet.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Shared wallets &mdash; Winnow">
-<meta name="twitter:description" content="Choose who signs, set up a shared account, back up every key, and review payments with Bitcoin Core cosigners.">
+<meta name="twitter:title" content="Multisig accounts &mdash; Winnow">
+<meta name="twitter:description" content="k-of-n Taproot accounts in Advanced mode: pair a Ledger, save other people's keys, create or join an account, add a recovery path, and back it up.">
 <meta name="twitter:image" content="https://winnowwallet.com/og.png">
 <link rel="stylesheet" href="site.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/vaults">Multisig</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header>
 <main id="main">
-<h1>Shared wallets</h1>
-<p class="lede">Choose who must approve, back up every key, then fund the account.</p>
-<nav class="contents" aria-label="On this page"><a href="#choose-policy">Choose</a><a href="#setup">Set up</a><a href="#backups">Back up</a><a href="#receive">Receive</a><a href="#approve">Approve</a></nav>
+<h1>Multisig accounts</h1>
+<p class="lede">An account that needs any k of n keys to spend. Build it in Advanced mode, back it up, then fund it.</p>
+<nav class="contents" aria-label="On this page"><a href="#choose-policy">What it is</a><a href="#signers">Signers</a><a href="#setup">Set up</a><a href="#recovery">Recovery path</a><a href="#ledger">Ledger</a><a href="#bitcoin-core">Bitcoin Core</a><a href="#backups">Back up</a><a href="#approve">Spend</a><a href="#testing">Testing</a></nav>
 
 <section id="choose-policy">
-<h2>Choose who signs</h2>
+<h2>What a k-of-n account is</h2>
+<p>A multisig account is a Taproot address whose coins move only on the script path: any k of its n signers must sign. Each signer signs the same message on their own, in any order. There are no rounds between signers. The PSBT carries the signatures until there are enough.</p>
 <div class="table-wrap" role="region" tabindex="0" aria-label="Scrollable table"><table>
-<caption>Three ways to control a payment</caption>
+<caption>Examples</caption>
 <thead><tr><th scope="col">Policy</th><th scope="col">Who can spend</th><th scope="col">What to plan for</th></tr></thead>
 <tbody>
-<tr><th scope="row">Everyday · one key</th><td>Your phone signs.</td><td>A stolen key can spend. Losing the key and its backups loses access.</td></tr>
-<tr><th scope="row">Both keys · 2-of-2</th><td>Your phone and a second signer must both approve.</td><td>Neither can spend alone. Losing either key and all its backups locks the funds.</td></tr>
-<tr><th scope="row">Any two · 2-of-3</th><td>Any two of the three keys can sign.</td><td>One signer can be unavailable. The other two can also spend without that person's agreement.</td></tr>
+<tr><th scope="row">2-of-2</th><td>This phone and a Ledger must both sign.</td><td>Neither can spend alone. Losing either key and all its backups locks the coins, unless the account has a recovery path.</td></tr>
+<tr><th scope="row">2-of-3</th><td>Any two of the three signers.</td><td>One signer can be unavailable. The other two can also spend without that person's agreement.</td></tr>
+<tr><th scope="row">1-of-n</th><td>Any one signer.</td><td>One key can spend, whatever the account is called. Check the policy the app shows.</td></tr>
 </tbody></table></div>
-<p>Independent keys need independent protection. Different public keys do not prove different owners, devices, or backups. These are examples: MuSig2 can be shared between people, and a threshold can protect one person's devices.</p>
+<p>Independent keys need independent protection. Different public keys do not prove different owners, devices or backups.</p>
+</section>
+
+<section id="signers">
+<h2>Settings → Signers</h2>
+<p>Accounts are built from the signers this phone knows. In <strong>Settings → Signers</strong>:</p>
+<ul>
+<li><strong>Pair a Ledger.</strong> Unlock the Ledger, open its Bitcoin app (2.1.2 or later; Bitcoin Test on signet) and tap Pair. The first time, confirm the same pairing code on both screens. The Ledger's multisig key is saved on the phone; nothing is approved on the Ledger until an account uses it.</li>
+<li><strong>Keys someone sent.</strong> Save another person's key with a name, such as Bob. A key looks like <code>[fingerprint/path]xpub…/&lt;0;1&gt;/*</code>. Two keys sent together, such as a phone's and its Ledger's, count as one signer: both must sign for it.</li>
+</ul>
+<p>This page also shows this phone's own key to send to others. Removing a signer does not change accounts already built with it.</p>
 </section>
 
 <section id="setup">
-<h2>Set up the account</h2>
-<h3 id="shared-control">Any two of three</h3>
-<p>In <strong>Wallet → Save with other people</strong>, choose the co-owners and threshold. Share the savings card so every wallet starts watching before funds arrive. Check the actual policy shown in the account: <strong>1-of-n allows one key to spend</strong>, regardless of the account's name.</p>
-<h3 id="extra-device">Both keys required</h3>
-<p>In <strong>Advanced mode → Wallet → Require another signing device</strong>, add the phone's key and a compatible participant's public account key. Review the policy together. <strong>Winnow's MuSig2 policy has no alternate recovery branch:</strong> both keys remain necessary for every payment.</p>
-<p><strong>Bitcoin Core 31.1 is the demonstrated cosigner.</strong> The <a href="/recording">recorded journey</a> receives and sends with phone-plus-Core MuSig2, then script-path 2-of-3 with Core co-owners. Hardware-wallet compatibility requires a separate verified integration. <a href="/core-cosigner">Set up with Bitcoin Core →</a></p>
+<h2>Create, join and share an account</h2>
+<p>Multisig accounts are in Advanced mode, on the <strong>Wallet</strong> tab, in the Multisig section.</p>
+<h3 id="create">Create an account</h3>
+<p>Choose the members: this phone, a paired Ledger, keys someone sent, or an account already on this phone (its own policy then decides how it signs). Set how many must sign, for example <strong>Any 2 of 3 members spend</strong>. The app shows the resulting policy before you create it.</p>
+<h3 id="join">Join an account</h3>
+<p>If someone else builds the account, send them this phone's key from <strong>Join an account → This phone's key</strong>, alone or together with a paired Ledger's as one signer. When they share the account, paste it there. Winnow finds coins sent to it from then on.</p>
+<h3 id="share">Share with co-signers</h3>
+<p>Everyone who signs needs the account to see its coins. On the account page, <strong>Share with co-signers</strong> sends its descriptor.</p>
+</section>
+
+<section id="recovery">
+<h2>The optional recovery path</h2>
+<p>When creating an account, turn on <strong>Recovery after a delay</strong>. Once a coin has not moved for the chosen delay (1 to 455 days, about 144 blocks a day), it can be spent by fewer of the same signers, or by a separate recovery key you paste. Coins that moved more recently still need the full threshold. The account's coin list shows the block from which each coin's recovery path opens.</p>
+<p>A recovery path is part of the account's script tree, so every co-signer sees it in the shared account.</p>
+</section>
+
+<section id="ledger">
+<h2>What a Ledger shows</h2>
+<p>A paired Ledger signs over Bluetooth. When an account includes it, Winnow registers the account on the Ledger, and you approve it in the Bitcoin app. A recovery path or a nested account needs Bitcoin app 2.2.1 or later.</p>
+<p><strong>Verify on Ledger</strong> has the Ledger derive the receive address; compare it with the one on its screen. When spending, the Ledger shows the payment on its own screen before it signs. Check the addresses, amounts and fee there, not only on the phone.</p>
+</section>
+
+<section id="bitcoin-core">
+<h2>A Bitcoin Core wallet as one key</h2>
+<p>A Bitcoin Core wallet can hold one key of an account. Take its Taproot key from <code>listdescriptors</code>, written as <code>[fingerprint/86'/1'/0']tpub…/&lt;0;1&gt;/*</code> on signet, and save it under Settings → Signers. After creating the account, import its descriptor into Core with Core's own key replaced by the private version (<code>importdescriptors</code>). Core then adds its signature to a PSBT with <code>walletprocesspsbt</code>; paste the result back into Winnow.</p>
+<p>Core is one signer here, like any other key. It is not a coordinator, and Winnow has no separate Core setup screen.</p>
 </section>
 
 <section id="backups">
 <h2>Back up before funding</h2>
 <ol>
-<li>Open the account and choose <strong>Back up this wallet</strong>. Keep the file: it includes account setup, address positions, and tracked funds.</li>
-<li>Keep the phone's recovery words separately. Every other signer needs its own key backup.</li>
-<li>Recovery words restore the wallet, not this account. Only the backup file or the iCloud copy brings shared accounts back.</li>
-<li>Make a fresh wallet backup after setting up an account and keep it current. Older files may omit shared accounts.</li>
+<li>Recovery words restore the wallet, not its multisig accounts. Only a backup file or the iCloud copy brings accounts back.</li>
+<li>Current backups, file and iCloud alike, carry the multisig accounts, their Ledger registrations and the Signers list (public keys only). Make a new backup file after creating or joining an account.</li>
+<li>Every other signer needs its own key backup. Winnow never holds another signer's private key.</li>
 </ol>
-<p>The default wallet export excludes recovery words. An export made with <strong>Include recovery phrase</strong> contains the phone's signing secret; protect it accordingly.</p>
-<p>On a replacement phone, a file without recovery words restores watch-only access. The current import screen requires a file containing the words to restore this phone’s signing key; it has no separate word-entry field.</p>
-<p>Recovery uses the file's saved history and scans forward for later payments. Recovery words or a public policy alone do not restore past payments. Signing exchanges are not restored; start a new exchange after recovery. <a href="/import">Recovery requirements and limits →</a></p>
-</section>
-
-<section id="receive">
-<h2>Receive into the right account</h2>
-<p>Use the receiving address for the account whose policy you reviewed. Confirm the other wallets are watching, then fund it. The account shows its signing requirement and confirmed balance.</p>
-<p>Importing an account later does not automatically find payments from before that wallet started watching. Keep its policy and wallet-history backup.</p>
+<p>The default backup file excludes recovery words and restores watch-only access. A file made with <strong>Include recovery phrase</strong> contains this phone's signing key; protect it as you would the words. <a href="/import">Backup contents and limits →</a></p>
+<h3 id="upgrade">Upgrading from the Swift app</h3>
+<p>On a phone upgraded from the Swift app, the saved people, Signers and multisig accounts that app stored are set aside, not deleted, and start empty. Pair the Ledger again, save other people's keys again, and join or restore accounts from a current backup or the shared descriptor.</p>
 </section>
 
 <section id="approve">
-<h2>Review and approve</h2>
-<p>Select the account when sending, then check the recipients, amounts, fee, and policy before authorizing.</p>
-<ul>
-<li><strong>2-of-3:</strong> open the account and choose <strong>Approve a request</strong>. It accepts a Winnow request or a raw PSBT. In Advanced mode, expand <strong>Raw PSBT</strong> to copy or share a reply.</li>
-<li><strong>MuSig2:</strong> use <strong>Continue signing</strong> to exchange public nonces and partial signatures with the other signer. After an interruption, choose <strong>Start again</strong> and begin a fresh exchange on both sides.</li>
-</ul>
-<p>Private signing keys stay with their holders during signing. The exchange carries payment details, public nonces, and signatures. When the required signatures are complete, the payment can be broadcast over the wallet's existing Bitcoin peer connection.</p>
+<h2>Spend from an account</h2>
+<p>Every payment starts from Send, the recovery path included; the account page also has <strong>Send from this account</strong>. Review the payment, sign on this phone, and the payment waits under Transactions until the other signers have signed. Share the PSBT with them, or paste a co-signer's signed copy with <strong>Paste a PSBT from a co-signer</strong>. Once enough signatures are in, Winnow finalizes and broadcasts the transaction over its own peer connections.</p>
+<p>Signers can sign in any order. Private keys stay with their holders; the PSBT carries the payment details and signatures.</p>
 </section>
+
+<section id="history">
+<h2>Earlier account types</h2>
+<p class="archive-note">History, 25 October 2026: MuSig2 accounts and Bitcoin Core cosigners ended in 0.8.13, the Swift app's last full release. A backup carrying a MuSig2 account is refused rather than restored without those coins. Restore such a file in the Swift app instead.</p>
+</section>
+
+<section id="testing">
+<h2>How it is tested</h2>
+<ul>
+<li>Every pull request runs <code>testMultisigTwoOfThreeWithRecovery</code>: a 2-of-3 built in the app with two Bitcoin Core wallets on a regtest node. The phone and both Core wallets sign, Core accepts a witness with exactly two signatures, and after a one-day delay the phone alone spends on the recovery path.</li>
+<li><code>testLedgerPairVerifySpend</code> pairs a simulated Ledger under Settings → Signers, has it verify the receive address, and spends with the phone's and the Ledger's signatures. No real Ledger is in CI.</li>
+<li>On 26 October 2026, a real Nano X co-signed a mainnet 2-of-2 with the Swift app (0.8.14): transaction <code>6d2b391e…</code>, block 973,281. The Lean app's CI uses the simulated Ledger.</li>
+</ul>
+<p><a href="/recording">The recorded journeys</a> · <a href="https://github.com/winnowwallet/winnow-lean/actions">Current test runs</a></p>
+</section>
+
+<details id="the-two-policies">
+<summary>Technical details: descriptors, privacy and signing</summary>
+<p>A plain account is <code>tr(NUMS, sortedmulti_a(k, …))</code>. The internal key is unspendable, so there is no key-path spend around the threshold. A recovery path, or a member with several keys, adds script leaves to the same tree. Receiving does not reveal the policy; a spend reveals the script it used, with its keys and threshold.</p>
+<p>The app reads PSBT v0 and v2 and shares v0. It checks known inputs and derives its own output scripts to recognize change; it does not trust a proposer's change labels or derivation metadata.</p>
+<p>Accounts sync in the everyday wallet's compact-filter scan. Signing support is Taproot only.</p>
+<p><a href="https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki">Taproot rules</a> · <a href="https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki">PSBT</a></p>
+</details>
 
 <details id="policy-metadata">
 <summary>What labels and policies can prove</summary>
-<p>The spending descriptor determines the required keys. Names, contact cards, notes, and imported labels cannot lower that requirement or prove who controls a key.</p>
-<p>A signed policy statement could authenticate its author and descriptor, but not the location of keys, absence of copies, or protection from coercion. Metadata cannot enforce a delay or independent approval; such a rule would need to constrain every valid spending path. Winnow does not implement those additional policies or certify protection against coercion.</p>
-<p id="professional-cosigners">A signing key does not establish inheritance rights, a trust, or a provider's obligations. Winnow has no verified professional-cosigner or lending integration. <a href="/roadmap#signing-partners">Provider and recovery research →</a></p>
-</details>
-
-<details id="the-two-policies">
-<summary>Technical details: descriptors, privacy, and signing</summary>
-<p>Threshold accounts use <code>tr(NUMS, sortedmulti_a(k, …))</code>; imported <code>multi_a</code> orderings are supported. The unspendable internal key provides no secret-key bypass of the threshold. Receiving does not reveal the threshold; a script-path spend reveals the executed script, keys, and threshold.</p>
-<p>MuSig2 accounts use <code>tr(musig(k1, k2, …)/…)</code> with BIP328 derivation and one Taproot key-path signature per input. The signature alone does not reveal how many keys signed. Transaction history and signing coordination can still reveal information. These policies do not combine into a hidden alternate spending path.</p>
-<p>The app reads PSBTv0 and v2 and shares v0 files with Core. It checks known inputs and derives its own output scripts to recognize change; it does not trust the proposer's change labels or derivation metadata.</p>
-<p>MuSig2 secret nonces stay in the active signing screen's memory. Leaving abandons the session; completing a signature consumes its nonce.</p>
-<p>Accounts use the everyday wallet's compact-filter flow. Current signing support is Taproot; another provider's P2SH/P2WSH policies or PSBT conventions require separate verification. The proposed <a href="/roadmap#safe">P2WSH Safe</a> is not shipped support.</p>
-<p><a href="https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki">Taproot rules</a> · <a href="https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki">MuSig2 specification</a> · <a href="https://github.com/winnowwallet/winnow/actions">Current test runs</a></p>
+<p>The descriptor decides the required keys. Names, notes and labels cannot lower that requirement or prove who controls a key.</p>
+<p>A signing key does not establish inheritance rights, a trust or a provider's obligations. Winnow has no professional-cosigner integration. <a href="/roadmap#signing-partners">Provider and recovery research →</a></p>
 </details>
 </main>
 <footer><div class="bar"><nav aria-label="Footer"><a href="/roadmap">Roadmap</a><a href="/privacy">Privacy</a><a href="/recording">Recording</a></nav></div></footer>

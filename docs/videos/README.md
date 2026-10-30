@@ -1,6 +1,17 @@
 [Back to website notes](../README.md)
 
-# Wallet journey recording
+# Reference media from the Swift app (0.8.x)
+
+The site normally shows the Lean app's media instead: each build fetches the
+`journey-media` artifact of the newest successful CI run on
+[winnow-lean](https://github.com/winnowwallet/winnow-lean)'s main (screenshots,
+the recording and `journey-provenance.json`) and writes it over these files in
+the CI workspace only. The files committed here are published only when that
+fetch fails. They come from the Swift app, which has since been retired, and
+show a flow the app no longer has: a MuSig2 account with Bitcoin Core as
+cosigner. See [testing](../testing.md) for the Lean journeys.
+
+## Wallet journey recording
 
 The [recording page](https://winnowwallet.com/recording) plays one continuous
 journey: create the wallet, receive and send

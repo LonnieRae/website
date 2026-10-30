@@ -2,8 +2,10 @@
 
 The website, public documentation, and blog for https://winnowwallet.com.
 The wallet app lives in [winnowwallet/winnow-lean](https://github.com/winnowwallet/winnow-lean),
-its Lean 4 rewrite. The earlier Swift app, whose recordings and screenshots
-this site still shows, is in [winnowwallet/winnow](https://github.com/winnowwallet/winnow).
+its Lean 4 rewrite. The earlier Swift app is in
+[winnowwallet/winnow](https://github.com/winnowwallet/winnow); its recordings and
+screenshots are committed here as reference media, shown only when a build cannot
+fetch the Lean app's CI media (see below).
 
 ## Work on the site
 
@@ -24,8 +26,8 @@ python3 -m http.server --directory docs 8765
 `drafts/`, outside the deployment tree. Do not publish a draft until it is ready.
 
 `migration.json` records the original personal-blog URLs and article dates.
-Article text, dates, and authorship are preserved. The personal blog should
-forward old links only after these routes are successfully deployed.
+Article text, dates, and authorship are preserved; the personal blog's old
+Winnow posts forward to these routes.
 
 ## Evidence and offline guides
 
@@ -61,7 +63,3 @@ receiving it as an artifact, so the private repository's artifact storage quota
 cannot stop a deploy. The `website`
 environment requires `CF_API_TOKEN` and `CF_ACCOUNT_ID`. Set its deployment
 branch policy to main. Validation receives no deployment secrets.
-
-For cutover, deploy this repo successfully before merging the wallet removal and
-personal-blog forwarding PRs. This prevents broken old links and competing site
-publishers.

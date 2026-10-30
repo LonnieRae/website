@@ -37,11 +37,11 @@ ACTS = [
         ("39-extra-device-sent", "Both signed, sent"),
         ("40-extra-device-confirmed", "Confirmed"),
     ]),
-    ("Shared savings, two of three", [
-        ("26-savings-share", "Invite the other owners"),
-        ("27-savings-funded", "Savings funded"),
-        ("14-approval-waiting", "One approval so far"),
-        ("15-approval-sent", "Two approve, it sends"),
+    ("Two of three", [
+        ("26-savings-share", "Share with the other signers"),
+        ("27-savings-funded", "The account is funded"),
+        ("14-approval-waiting", "One signature so far"),
+        ("15-approval-sent", "Two sign, it sends"),
         ("28-savings-confirmed", "Confirmed"),
     ]),
 ]
@@ -257,7 +257,7 @@ def recorded_run(acts):
 REFERENCE_MODES = [
     ("everyday", "Everyday", "You approve", "56-home-beginner", "Your everyday wallet", "One key. One decision.", "Receive, review, send. All from your phone.", "1 key · 1 signature", 1, 1),
     ("both", "Both keys", "2 of 2", "40-extra-device-confirmed", "Two keys, both required", "Two keys. Both sign.", "Your phone and a Ledger both approve each payment.", "2-of-2 · 2 signatures", 2, 2),
-    ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Shared savings", "Two approve. One can be away.", "Any two owners can approve a payment. Add a recovery path that opens after a delay.", "2-of-3 · 2 signatures", 3, 2),
+    ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Any two of three", "Two approve. One can be away.", "Any two of three signers can approve a payment. Add a recovery path that opens after a delay.", "2-of-3 · 2 signatures", 3, 2),
 ]
 FIELDS = ("key", "name", "rule", "shot", "caption", "heading", "description", "technical", "keys", "needed")
 
@@ -266,9 +266,9 @@ def reference_media():
     """What the homepage says about the committed reference recording."""
     return {"modes": [dict(zip(FIELDS, mode), width=SHOT_WIDTH, height=SHOT_HEIGHT) for mode in REFERENCE_MODES],
             "acts": reference_acts(), "poster": "56-home-beginner", "network": "SIGNET",
-            "path_label": "Recorded journey: ordinary send, MuSig2 receive and send, then 2-of-3 receive and send",
+            "path_label": "Recorded with the earlier Swift app: an ordinary send, a two-key send, then a 2-of-3 send",
             "note": "Real payments on private signet, recorded with the earlier Swift app.",
-            "video_label": "Ordinary, MuSig2, and 2-of-3 payments in Winnow",
+            "video_label": "Ordinary, two-key and 2-of-3 payments in the earlier Swift app",
             "dialog_note": "Private signet · earlier Swift app", "run": None}
 
 
@@ -363,7 +363,7 @@ def lean_section():
 def homepage(journeys, cases, media=None):
     media = media or reference_media()
     title = "Winnow — Bitcoin, on your terms"
-    intro = "A Bitcoin wallet for your iPhone. Pay from your phone, add a Ledger as a second key, or share a wallet with a way back after a delay."
+    intro = "A Bitcoin wallet for iPhone and iPad. Pay from your phone, add a Ledger as a second key, or share a wallet with a way back after a delay."
     choices, policies, screens = [], [], []
     for index, mode in enumerate(media["modes"]):
         key, name, rule, shot, caption, heading, description, technical, keys, needed = (mode[field] for field in FIELDS)
@@ -447,7 +447,7 @@ def ci_details(evidence):
 
 def recording_page(root, evidence_v2=None):
     manifest = root / "docs/journey-provenance.json"
-    poster, label = "56-home-beginner", "Ordinary and shared-account payments in Winnow"
+    poster, label = "56-home-beginner", "Ordinary and multisig payments in Winnow"
     if evidence_v2 is not None:
         details = ci_details(evidence_v2)
         poster, label = evidence_v2.get("poster", poster), "The wallet’s UI journeys in Winnow"
@@ -468,7 +468,7 @@ def recording_page(root, evidence_v2=None):
 <title>Wallet journey — Winnow</title><link rel="stylesheet" href="/site.css">
 <style>video{{display:block;width:min(100%,26rem);max-height:75vh;margin:1.5rem auto;border:1px solid var(--rule);border-radius:1rem;background:#111}}</style></head>
 <body><a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header><main id="main"><p class="page-kicker">Recorded in the real app</p><h1>Wallet journey</h1>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="/vaults">Multisig</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header><main id="main"><p class="page-kicker">Recorded in the real app</p><h1>Wallet journey</h1>
 <video controls playsinline preload="metadata" poster="/screenshots/{poster}.png" aria-label="{escape(label)}">
 <source src="/{VIDEO_PATH}" type="video/mp4">
 <a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.

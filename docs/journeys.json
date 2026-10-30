@@ -39,9 +39,9 @@
     "id": "send",
     "section": "everyday",
     "title": "Send bitcoin",
-    "description": "Choose an account, recipient, and amount. Check the address, fee, and total before sending or continuing to the account’s approvals.",
+    "description": "Choose an account, recipient, and amount. Check the address, fee, and total before sending, or before collecting the account’s other signatures. A silent payment code works as a recipient too.",
     "journey": [
-      "Open Send in beginner mode, paste an address, and enter the amount.",
+      "Open Send in Simple mode, paste an address, and enter the amount.",
       "Review the destination, amount, and fee before sending.",
       "Check that Bitcoin Core accepts the payment; mine a block, see the receipt confirm, and return to wallet history."
     ],
@@ -95,42 +95,44 @@
   {
     "id": "savings",
     "section": "everyday",
-    "title": "Save with other people",
-    "description": "Choose who shares the wallet and how many approvals a payment needs. With two approvals out of three, one person can be away and the other two can still pay.",
+    "title": "Share a wallet with other signers",
+    "description": "Choose who signs and how many must sign. With two of three, one signer can be away and the other two can still pay. An optional recovery path lets fewer signers, or a recovery key, spend a coin that has not moved for a chosen number of blocks.",
     "journey": [
-      "Receive test bitcoin into a script-path 2-of-3 account containing the phone’s key and two Bitcoin Core cosigners.",
-      "Review a payment, approve on the phone, and add one Core cosigner’s approval; the other Core key is available but unused.",
-      "Send and check that the node accepts the payment and the app discovers its confirmation."
+      "In Advanced, create a script-path 2-of-3 account from the phone’s key and two Bitcoin Core wallets’ keys, and receive test bitcoin into it.",
+      "Review a payment and sign on the phone; add one Core wallet’s signature from a PSBT. The other key is not needed.",
+      "Send and check that the node accepts the payment and the app sees it confirm; after the recovery delay, spend with the recovery path."
     ],
     "tests": [
       "test01CreateReceiveSendConfirm"
     ],
-    "limitations": "For shared control, each person must keep their own key. If you choose just one required approval, any one of them can spend.",
+    "limitations": "Each signer keeps their own key. If you choose one required signature, any one of them can spend. Recovery words restore the wallet, not the account: keep the backup file or the iCloud copy.",
     "guide": "/vaults",
     "screenshots": {
-      "10-multisig-build": "Any two of three owners",
-      "11-multisig-funded": "Shared savings funded",
-      "12-multisig-one-signature": "One approval so far",
-      "13-multisig-sent": "Two approve, it sends",
+      "10-multisig-build": "Any two of three signers",
+      "11-multisig-funded": "The account is funded",
+      "12-multisig-one-signature": "One signature so far",
+      "13-multisig-sent": "Two sign, it sends",
+      "13a-account-page-share": "Share with co-signers",
       "13b-multisig-transactions": "History shows it once",
-      "14-multisig-recovered": "After a day, one key recovers"
+      "13c-send-recovery-path": "Spend with the recovery path",
+      "14-multisig-recovered": "After the delay, the recovery path spends"
     }
   },
   {
     "id": "second-device",
     "section": "advanced",
-    "title": "Combine your phone with another signer",
-    "description": "Use 2-of-2 MuSig2 so your phone and a separate key must both approve every payment. You can also use a MuSig2 group as one cosigner in a larger threshold vault.",
+    "title": "Add a Ledger as a second key",
+    "description": "Pair a Ledger under Settings → Signers and make a 2-of-2 with your phone. The Ledger shows the address and the payment on its own screen before it signs.",
     "journey": [
-      "Receive test bitcoin into a 2-of-2 MuSig2 account shared by the phone and one Bitcoin Core cosigner.",
-      "Review a payment and exchange signing data between the phone and Core; both keys are required.",
-      "Send and check node acceptance and confirmation in the app."
+      "Pair a Ledger over Bluetooth and create a 2-of-2 account from the phone’s key and the Ledger’s.",
+      "Check the receive address on the Ledger, fund the account, and review a payment.",
+      "Sign on the phone and on the Ledger; send and see the payment confirm in the account’s history."
     ],
     "tests": [
       "test01CreateReceiveSendConfirm"
     ],
-    "guide": "/core-cosigner",
-    "limitations": "This journey uses Bitcoin Core as the second signer. It does not establish hardware-wallet compatibility or every signing order. Keep the wallet backup file, the phone’s recovery words, and a separate backup of the other signer’s key. Every key is required.",
+    "guide": "/vaults",
+    "limitations": "The CI journey uses a simulated Ledger. A real Nano X co-signed a mainnet 2-of-2 with the earlier Swift app on 26 October 2026. Needs the Ledger Bitcoin app 2.1.2 or later (2.2.1 for a recovery path). Both keys are required: keep the wallet’s backup and the Ledger’s recovery words.",
     "screenshots": {
       "19-signers-paired": "Pair a Ledger",
       "20-ledger-verified": "Check the address on the Ledger",
@@ -141,44 +143,52 @@
     }
   },
   {
+    "id": "accounts",
+    "section": "advanced",
+    "title": "Create or join a multisig account",
+    "description": "Under Wallet in Advanced, create an account from this phone, a Ledger and keys someone sent, or join one shared with you. Signatures travel as PSBTs.",
+    "journey": [
+      "Open Wallet in Advanced and choose Create an account or Join an account.",
+      "Open the account and use Share with co-signers."
+    ],
+    "tests": [],
+    "guide": "/vaults",
+    "screenshots": {
+      "34-wallet-multisig": "Multisig accounts in Wallet",
+      "35-join": "Join an account",
+      "13a-account-page": "The account page"
+    }
+  },
+  {
     "id": "recovery",
     "section": "everyday",
     "title": "Back up and restore",
-    "description": "Automatic encrypted iCloud backup restores this phone’s signing key, history, shared accounts, saved people and labels. Manual files remain available.",
+    "description": "Automatic encrypted iCloud backup restores this phone’s signing key, history, multisig accounts, saved people and labels. Manual backup files remain available.",
     "journey": [
       "Create a wallet; backup begins without an Enable step. A successful save appears only after iCloud acknowledges it.",
       "On a replacement device, Winnow discovers backups automatically. Select one and authenticate; automatic updates resume using a separate record.",
       "Use Advanced for recovery words, manual exports or disabling cloud backup. Without iCloud, keep a combined manual history-and-key file for spending recovery."
     ],
     "tests": [],
-    "limitations": "Cloud and Keychain synchronization can be delayed. Other owners’ signing keys are not included. Older cloud copies may lack names and labels. Recovery words alone restore the wallet but not shared multisig accounts; those come back only from a backup file or the iCloud copy."
+    "limitations": "Cloud and Keychain synchronization can be delayed. Other signers’ keys are not included. Older cloud copies may lack names and labels. Recovery words alone restore the wallet but not shared multisig accounts; those come back only from a backup file or the iCloud copy.",
+    "screenshots": {
+      "31-settings-backup": "Backup settings",
+      "32-backup-file-sheet": "Save a backup file",
+      "33-icloud-sheet": "The iCloud copy"
+    }
   },
   {
     "id": "controls",
     "section": "everyday",
     "title": "One screen, or the full set of controls",
-    "description": "Beginner mode is one screen with no settings. Advanced mode, one tap from its corner, is the three-tab interface: fee controls, network connections, signing tools and every setting.",
+    "description": "Simple mode is one screen with no settings. Advanced mode, one tap from its corner, is the full set: fee controls, network connections, signers, multisig accounts and every setting.",
     "journey": [
-      "Create, receive, and send using the beginner interface.",
+      "Create, receive, and send in Simple mode.",
       "Return to the one-screen wallet and see its balance and payment history."
     ],
     "tests": [
       "test01CreateReceiveSendConfirm"
     ]
-  },
-  {
-    "id": "vaults",
-    "section": "advanced",
-    "title": "Inspect and import signing policies",
-    "description": "Create a Taproot vault from public signer keys and coordinate approvals using PSBT text. Inspect the policy and reviewed transaction explicitly.",
-    "journey": [
-      "Use the phone-plus-Core MuSig2 account and the script-path 2-of-3 account within the same wallet journey.",
-      "Receive into each account, review a payment, collect its required approvals, and confirm the spend."
-    ],
-    "tests": [
-      "test01CreateReceiveSendConfirm"
-    ],
-    "guide": "/core-cosigner"
   },
   {
     "id": "fees",
@@ -205,17 +215,16 @@
     "limitations": "Explorer websites are not wallet backends. A single or coordinated set of peers can still withhold information; multiple connections are not proof of independent operators."
   },
   {
-    "id": "peer-refresh",
+    "id": "census",
     "section": "advanced",
-    "title": "Refresh the peer list",
-    "description": "Download dated candidates from Winnow’s census without interrupting active peers. Reset and shuffle peers is a separate action.",
+    "title": "The peers each build ships",
+    "description": "Each build ships the census peer list, checked against Winnow’s pinned signing key before it is bundled. The app downloads no census.",
     "journey": [
-      "Choose Refresh peer list in Advanced settings, then read the observation date and candidate counts.",
-      "Existing connections stay active while the new list becomes available for future connections.",
-      "Reset and shuffle remains a separate choice."
+      "Open Advanced settings and read the bundled census’s observation date and peer counts.",
+      "Use Reset and shuffle peers to discard remembered candidates and reconnect."
     ],
     "tests": [],
-    "limitations": "Downloads expire after seven days; saved peers and DNS discovery remain available. Downloaded census entries count as one trust source. Every selected peer still undergoes normal wallet checks.",
+    "limitations": "The census is one trust source. Every peer still goes through the wallet’s normal checks. A new census arrives with a new build.",
     "screenshots": {
       "30-settings-census": "The bundled peer census"
     }
