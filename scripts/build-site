@@ -52,7 +52,7 @@ WALLET = "https://github.com/winnowwallet/winnow"
 TEST_HEADINGS = {
     "testCreateReceiveSendConfirm": "An ordinary payment",
     "testLedgerPairVerifySpend": "A Ledger as the second key",
-    "testMultisigTwoOfThreeWithRecovery": "Shared savings, two of three",
+    "testMultisigTwoOfThreeWithRecovery": "Two of three, and the recovery path",
     "testShippedCensus": "The peer census",
     "testSilentPaymentSend": "A silent payment",
 }
@@ -269,7 +269,7 @@ def reference_media():
             "path_label": "Recorded journey: ordinary send, MuSig2 receive and send, then 2-of-3 receive and send",
             "note": "Real payments on private signet, recorded with the earlier Swift app.",
             "video_label": "Ordinary, MuSig2, and 2-of-3 payments in Winnow",
-            "dialog_note": "Private signet · earlier Swift app"}
+            "dialog_note": "Private signet · earlier Swift app", "run": None}
 
 
 def ci_media(manifest, captions):
@@ -291,10 +291,73 @@ def ci_media(manifest, captions):
             "network": network.upper(),
             "path_label": "Recorded journey: an ordinary send, a 2-of-2 payment with a Ledger, then a 2-of-3 "
                           "payment and its recovery path",
-            "note": f"Real payments on a private {network} node. Shared accounts use Bitcoin Core cosigners; "
-                    "the Ledger is emulated.",
+            "note": f"Real payments on a private {network} node, recorded by CI. The 2-of-3’s other signers are "
+                    "Bitcoin Core wallets on that node; the Ledger is simulated.",
             "video_label": "Ordinary, Ledger 2-of-2, 2-of-3, and silent payments in Winnow",
-            "dialog_note": f"Private {network} · Bitcoin Core cosigners"}
+            "dialog_note": f"Private {network} · recorded by CI", "run": manifest}
+
+
+LEAN = "https://github.com/winnowwallet/winnow-lean"
+LEANNATIVE = "https://leannative.com"
+# What every CI run checks before it records the journeys (winnow-lean's ci.yml, LeanNative's ios-app workflow).
+GATES = [
+    "Lean built from source, every proof checked",
+    "Wallet, network and multisig tests against Bitcoin Core on a private regtest node",
+    "Simulator and device builds, each checked to contain no Swift",
+    "Release builds checked to carry no test mode",
+    "The app driven through these journeys on screen, and recorded",
+]
+
+
+def duration(seconds):
+    """A test's time in minutes and seconds, as a person says it."""
+    minutes, rest = divmod(round(seconds), 60)
+    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
+
+
+def screens(n):
+    return f"{n} screen" if n == 1 else f"{n} screens"
+
+
+def checked_section(run):
+    """The newest passing CI run of the app: what it ran, on what, from which commit. None: no section."""
+    if not run:
+        return ""
+    counts = {}
+    for shot in run["screenshots"]:
+        counts[shot.get("test")] = counts.get(shot.get("test"), 0) + 1
+    rows = "".join(
+        f'<li><span class="test-name">{escape(TEST_HEADINGS.get(test["name"]) or test_words(test["name"]))}'
+        f'<code>{escape(test["name"])}</code></span><span class="test-shots">{screens(counts.get(test["name"], 0))}</span>'
+        f'<span class="test-time">{duration(test["seconds"])}</span>'
+        f'<span class="test-result">{escape(test["result"])}</span></li>'
+        for test in run["tests"])
+    device = run.get("device") or {}
+    on = " · ".join(escape(str(part)) for part in (device.get("name"), device.get("os")) if part)
+    when = escape(str(run.get("normalized_at") or "")[:10])
+    sha = escape(run["source_sha"])
+    run_link = (f'<a href="{escape(run["run_url"])}">CI run ↗</a>' if run.get("run_url") else "a local run")
+    gates = "".join(f"<li>{escape(gate)}</li>" for gate in GATES)
+    return f'''<section class="checked" id="checked" aria-labelledby="checked-title">
+<div class="section-heading"><p class="eyebrow">CHECKED ON EVERY COMMIT</p><h2 id="checked-title">Every change runs the app.</h2></div>
+<div class="checked-grid"><div class="checked-copy"><p>Each change to Winnow builds the app from its Lean source, runs it in a simulator against a private Bitcoin node, and records what happened. The screens above come from the newest run that passed.</p>
+<dl class="run-facts"><div><dt>Commit</dt><dd><a href="{escape(commit_url(run))}"><code>{sha[:7]}</code></a></dd></div><div><dt>Device</dt><dd>{on or "Simulator"}</dd></div><div><dt>Network</dt><dd>{escape(str(run.get("network") or "regtest"))}</dd></div><div><dt>Recorded</dt><dd>{when}</dd></div><div><dt>Source</dt><dd>{run_link}</dd></div></dl>
+<ul class="gates">{gates}</ul>
+<p class="gate-note">A release tag runs all of it again before a build goes to TestFlight.</p></div>
+<ol class="test-list" aria-label="UI journeys in this run">{rows}</ol></div>
+</section>'''
+
+
+def lean_section():
+    return f'''<section class="lean" id="lean" aria-labelledby="lean-title">
+<div class="section-heading"><p class="eyebrow">WRITTEN IN LEAN 4</p><h2 id="lean-title">No Swift. One language, top to bottom.</h2></div>
+<div class="lean-grid">
+<article><p class="lean-label">01 · The wallet</p><h3>Bitcoin in Lean</h3><p>Keys, transactions, PSBTs, descriptors, compact-filter sync, peers and broadcast are Lean 4 compiled to C. Every signature runs on a secp256k1 whose arithmetic is proven in Lean.</p></article>
+<article><p class="lean-label">02 · The app</p><h3>Model, update, view</h3><p>Each screen is a Lean function from the wallet’s state. Standard iOS controls draw it, through an Objective-C shell that is itself printed from Lean at build time.</p></article>
+<article><p class="lean-label">03 · The framework</p><h3>LeanNative</h3><p>Keychain, Face ID, Bluetooth, iCloud and background tasks reach Lean as typed capabilities. The Xcode project is generated from a Lean description of the app, which refuses a permission without its explanation.</p></article>
+</div>
+<p class="lean-links"><a href="{LEAN}">Source on GitHub ↗</a><a href="/architecture">How it works</a><a href="{LEAN}/blob/main/PORT.md">How the port was checked ↗</a><a href="{LEANNATIVE}">LeanNative ↗</a></p>
+</section>'''
 
 
 def homepage(journeys, cases, media=None):
@@ -325,17 +388,17 @@ def homepage(journeys, cases, media=None):
 </head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header wrap"><a class="brand" href="/" aria-label="Winnow home"><span class="brand-icon" aria-hidden="true">₿</span> winnow</a>
-<nav aria-label="Main"><a href="https://census.winnowwallet.com/">Census</a><a href="https://census.winnowwallet.com/health/">Network health</a><a href="https://compare.winnowwallet.com/">Compare</a><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub <span aria-hidden="true">↗</span></a></nav></header>
+<nav aria-label="Main"><a href="https://census.winnowwallet.com/">Census</a><a href="https://census.winnowwallet.com/health/">Network health</a><a href="https://compare.winnowwallet.com/">Compare</a><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="{"#checked" if media["run"] else "/evidence"}">Evidence</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub <span aria-hidden="true">↗</span></a></nav></header>
 <main id="main" class="wrap">
 <section class="hero" aria-labelledby="hero-title">
-<div class="hero-copy"><p class="eyebrow"><span></span> A BITCOIN WALLET FOR IPHONE</p>
+<div class="hero-copy"><p class="eyebrow"><span></span> A BITCOIN WALLET FOR IPHONE · WRITTEN IN LEAN 4</p>
 <h1 id="hero-title">Your bitcoin.<br>Your choice<br><em>of control.</em></h1>
 <p class="intro">Pay from your phone, add a Ledger,<br class="desktop-break"> or share a wallet.</p>
 <div class="actions"><a class="download" href="https://apps.apple.com/app/id6801502501">Download for iPhone <span aria-hidden="true">↗</span></a><a class="watch" href="/recording" data-watch><span class="play-icon" aria-hidden="true">▶</span> Watch it work</a></div>
-<p class="availability">Open source <span>·</span> Early access <span>·</span> <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a> (0.9, rewritten in Lean 4)</p>
+<p class="availability"><a href="{LEAN}">Open source</a> <span>·</span> MIT <span>·</span> <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a> <span>·</span> iPhone, iPad and Apple silicon Mac</p>
 <fieldset class="mode-picker"><legend>Choose who signs</legend><div class="mode-options">{"".join(choices)}</div></fieldset>
 <div class="policies" aria-live="polite">{"".join(policies)}</div></div>
-<div class="product-stage"><div class="stage-heading"><span>THE ACTUAL APP</span><span class="stage-dot" aria-hidden="true"></span><span>RECORDED ON {media["network"]}</span></div>
+<div class="product-stage"><div class="stage-heading"><span>THE ACTUAL APP</span><span class="stage-dot" aria-hidden="true"></span><span>RECORDED {"BY CI " if media["run"] else ""}ON {media["network"]}</span></div>
 <div class="wallet-screens">{"".join(screens)}</div>
 <a class="stage-link" href="/recording" data-watch><span class="play-icon" aria-hidden="true">▶</span> See the full journey <span aria-hidden="true">↗</span></a></div>
 </section>
@@ -343,8 +406,10 @@ def homepage(journeys, cases, media=None):
 <div class="journey-path" aria-label="{escape(media["path_label"])}"><span><b>01</b> Everyday</span><i aria-hidden="true">→</i><span><b>02</b> Both keys</span><i aria-hidden="true">→</i><span><b>03</b> Any two</span></div>
 <p class="provenance-note">{escape(media["note"])} <a href="/recording">Recording &amp; source ↗</a></p>
 {recorded_run(media["acts"])}</section>
+{checked_section(media["run"])}
+{lean_section()}
 </main>
-<footer class="wrap"><p class="footer-brand">winnow<span>Your phone connects directly to Bitcoin.</span></p><nav aria-label="Footer"><a href="/vaults">Shared wallets</a><a href="/roadmap">Roadmap</a><a href="/privacy">Privacy</a></nav></footer>
+<footer class="wrap"><p class="footer-brand">winnow<span>Your phone connects directly to Bitcoin.</span></p><nav aria-label="Footer"><a href="/vaults">Multisig</a><a href="/roadmap">Roadmap</a><a href="/privacy">Privacy</a><a href="{LEANNATIVE}">LeanNative ↗</a></nav></footer>
 <dialog id="journey-dialog" aria-labelledby="video-title"><div class="dialog-bar"><h2 id="video-title">The wallet, in action.</h2><form method="dialog"><button autofocus aria-label="Close recording">Close <span aria-hidden="true">×</span></button></form></div>
 <video controls playsinline preload="none" poster="/screenshots/{media["poster"]}.png" aria-label="{escape(media["video_label"])}"><source src="/{VIDEO_PATH}" type="video/mp4"><a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.</video>
 <p>{escape(media["dialog_note"])} · <a href="/recording">Recording provenance</a></p></dialog>

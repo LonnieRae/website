@@ -213,7 +213,7 @@ class CIMediaTests(unittest.TestCase):
         self.assertEqual(re.findall(r'<img src="screenshots/([a-z0-9-]+)\.png"', gallery),
                          [name for name, _ in self.shots])
         self.assertEqual(re.findall(r"<h3>(.*?)</h3>", gallery),
-                         ["An ordinary payment", "Shared savings, two of three", "A Ledger as the second key",
+                         ["An ordinary payment", "Two of three, and the recovery path", "A Ledger as the second key",
                           "Future journey"])
         captions = re.findall(r"<figcaption>(.*?)</figcaption>", gallery)
         # journeys.json captions, else the name in words
@@ -230,11 +230,39 @@ class CIMediaTests(unittest.TestCase):
                          ["07-home-after-send", "22-ledger-confirmed", "13-multisig-sent"])
         self.assertNotIn("MuSig2", homepage)
         self.assertIn("2-of-2 · 2 signatures", homepage)
-        self.assertIn("RECORDED ON REGTEST", homepage)
+        self.assertIn("RECORDED BY CI ON REGTEST", homepage)
         self.assertIn('poster="/screenshots/07-home-after-send.png"', homepage)
         self.assertIn('poster="/screenshots/07-home-after-send.png"', recording)
         for mode in ("everyday", "both", "shared"):
             self.assertIn(f'id="screen-{mode}"', homepage)
+
+    def test_checked_section_is_the_run(self):
+        homepage, _ = self.build()
+        checked = homepage.split('id="checked"', 1)[1].split("</section>", 1)[0]
+        tests = re.findall(r'<code>(test[A-Za-z0-9]+)</code>', checked)
+        self.assertEqual(tests, [test["name"] for test in self.evidence["tests"]])
+        self.assertIn("A Ledger as the second key", checked)
+        self.assertIn("Future journey", checked)  # a test with no heading gets its name in words
+        self.assertIn(f'/commit/{SHA}"><code>{SHA[:7]}</code>', checked)
+        self.assertIn(f'href="{RUN}"', checked)
+        self.assertIn("iPhone 17 Pro · iOS 26.5", checked)
+        self.assertIn("2 screens", checked)  # the ordinary payment's two captures
+        self.assertIn("8 s", checked)
+        self.assertEqual(checked.count('class="test-result">passed<'), 4)
+        self.assertIn('href="#checked">Evidence', homepage)
+
+    def test_lean_section_names_the_source_and_framework(self):
+        homepage, _ = self.build()
+        lean = homepage.split('id="lean"', 1)[1].split("</section>", 1)[0]
+        for link in ("https://github.com/winnowwallet/winnow-lean", "https://leannative.com", "/architecture"):
+            self.assertIn(f'href="{link}', lean)
+
+    def test_reference_media_have_no_run_section(self):
+        media = site.reference_media()
+        self.assertIsNone(media["run"])
+        self.assertEqual(site.checked_section(media["run"]), "")
+        self.assertEqual(site.duration(58.4), "58 s")
+        self.assertEqual(site.duration(618.306), "10 min 18 s")
 
     def test_a_mode_without_a_ci_screenshot_keeps_its_reference_screen(self):
         self.evidence["screenshots"] = [s for s in self.evidence["screenshots"] if s["name"] != "22-ledger-confirmed"]
