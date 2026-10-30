@@ -11,7 +11,10 @@
     "tests": [
       "test01CreateReceiveSendConfirm"
     ],
-    "limitations": "Without iCloud the wallet still works and shows Not backed up. Save a manual backup; recovery words and backup controls are in Advanced. The recorded simulator journey does not validate live iCloud."
+    "limitations": "Without iCloud the wallet still works and shows Not backed up. Save a manual backup; recovery words and backup controls are in Advanced. The recorded simulator journey does not validate live iCloud.",
+    "screenshots": {
+      "01-onboarding": "Create a wallet"
+    }
   },
   {
     "id": "receive",
@@ -26,7 +29,11 @@
     "tests": [
       "test01CreateReceiveSendConfirm"
     ],
-    "limitations": "An address label does not verify the sender or create a payment destination. Labels are included in encrypted iCloud recovery, but not in manual wallet files."
+    "limitations": "An address label does not verify the sender or create a payment destination. Labels are included in encrypted iCloud recovery, but not in manual wallet files.",
+    "screenshots": {
+      "03-receive": "Show a receive address",
+      "04-home-funded": "The coins arrive"
+    }
   },
   {
     "id": "send",
@@ -40,7 +47,14 @@
     ],
     "tests": [
       "test01CreateReceiveSendConfirm"
-    ]
+    ],
+    "screenshots": {
+      "05-send-review": "Check address, fee, total",
+      "06-send-confirmed": "Confirmed on Bitcoin",
+      "07-home-after-send": "History keeps the receipt",
+      "40-silent-review": "Pay a silent payment code",
+      "41-silent-confirmed": "The silent payment confirms"
+    }
   },
   {
     "id": "people",
@@ -92,7 +106,15 @@
       "test01CreateReceiveSendConfirm"
     ],
     "limitations": "For shared control, each person must keep their own key. If you choose just one required approval, any one of them can spend.",
-    "guide": "/vaults"
+    "guide": "/vaults",
+    "screenshots": {
+      "10-multisig-build": "Any two of three owners",
+      "11-multisig-funded": "Shared savings funded",
+      "12-multisig-one-signature": "One approval so far",
+      "13-multisig-sent": "Two approve, it sends",
+      "13b-multisig-transactions": "History shows it once",
+      "14-multisig-recovered": "After a day, one key recovers"
+    }
   },
   {
     "id": "second-device",
@@ -108,7 +130,15 @@
       "test01CreateReceiveSendConfirm"
     ],
     "guide": "/core-cosigner",
-    "limitations": "This journey uses Bitcoin Core as the second signer. It does not establish hardware-wallet compatibility or every signing order. Keep the wallet backup file, the phone’s recovery words, and a separate backup of the other signer’s key. Every key is required."
+    "limitations": "This journey uses Bitcoin Core as the second signer. It does not establish hardware-wallet compatibility or every signing order. Keep the wallet backup file, the phone’s recovery words, and a separate backup of the other signer’s key. Every key is required.",
+    "screenshots": {
+      "19-signers-paired": "Pair a Ledger",
+      "20-ledger-verified": "Check the address on the Ledger",
+      "20b-ledger-transfer-row": "Fund the shared account",
+      "21-ledger-signed": "Phone and Ledger both sign",
+      "22-ledger-confirmed": "Confirmed",
+      "23-ledger-transactions": "History names the account"
+    }
   },
   {
     "id": "recovery",
@@ -185,6 +215,9 @@
       "Reset and shuffle remains a separate choice."
     ],
     "tests": [],
-    "limitations": "Downloads expire after seven days; saved peers and DNS discovery remain available. Downloaded census entries count as one trust source. Every selected peer still undergoes normal wallet checks."
+    "limitations": "Downloads expire after seven days; saved peers and DNS discovery remain available. Downloaded census entries count as one trust source. Every selected peer still undergoes normal wallet checks.",
+    "screenshots": {
+      "30-settings-census": "The bundled peer census"
+    }
   }
 ]

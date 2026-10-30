@@ -34,13 +34,31 @@ The site checks screenshots against that read-only snapshot without running app
 tests or claiming new test results. Recordings retain their original provenance.
 Website source was extracted from wallet commit 7751cfd30f5e1b108fcfe322db38b76948a0bb1d.
 
+CI builds take the wallet's newest UI-journey media instead, when they can.
+`scripts/fetch-journey-media` downloads the `journey-media` artifact of the
+newest successful `ci.yml` run on the wallet's main, checks every file against
+its `journey-provenance.json` (version 2: run, commit, device, each test's
+result), and writes the screenshots, `videos/wallet-journey.mp4` and the
+manifest over the committed media in the CI workspace only; never commit them.
+`scripts/build-site` then builds the gallery, hero and recording page from the
+manifest, captioned by the `screenshots` entries in `docs/journeys.json`. When
+the fetch fails it says why and the committed reference media are published.
+The wallet repository is public and sends nothing here: the site workflow runs
+every six hours (and on push), lists the wallet's runs without a token, and
+downloads the artifact with its own `GITHUB_TOKEN`, since GitHub serves artifact
+zips only to authenticated requests. A scheduled build deploys only when the
+fetched manifest's commit differs from the one winnowwallet.com shows.
+
 The wallet retains offline guide snapshots. A website deploy does not change a
 released app; copy reviewed guide changes into the app separately.
 
 ## Deployment
 
-Pull requests validate the website and upload a review artifact. Main deploys
-only `docs/` to the existing Cloudflare Pages project `winnow`. The `website`
+Pull requests validate the website; nothing is uploaded. Main deploys only
+`docs/` to the existing Cloudflare Pages project `winnow`: the deploy job checks
+out the commit, takes the journey media and builds the site itself, rather than
+receiving it as an artifact, so the private repository's artifact storage quota
+cannot stop a deploy. The `website`
 environment requires `CF_API_TOKEN` and `CF_ACCOUNT_ID`. Set its deployment
 branch policy to main. Validation receives no deployment secrets.
 

@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the homepage and the focused app journey recording page."""
+"""Generate the homepage and the focused app journey recording page.
+
+The journey media come from one of two places. When docs/journey-provenance.json is a version 2 manifest
+(the wallet CI's journey-media artifact, placed by scripts/fetch-journey-media), the gallery, hero, sizes and
+recording provenance come from it: its screenshots in order, captioned from docs/journeys.json. Otherwise
+the pages describe the committed reference media, validated against the pinned Swift UI tests in upstream/.
+"""
 import argparse
+import hashlib
 import html
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,17 +46,101 @@ ACTS = [
     ]),
 ]
 SHOT_WIDTH, SHOT_HEIGHT = 1206, 2622
+MANIFEST = "docs/journey-provenance.json"
+WALLET = "https://github.com/winnowwallet/winnow"
+# Gallery headings for the CI journeys' tests; a test not named here gets its name in words.
+TEST_HEADINGS = {
+    "testCreateReceiveSendConfirm": "An ordinary payment",
+    "testLedgerPairVerifySpend": "A Ledger as the second key",
+    "testMultisigTwoOfThreeWithRecovery": "Shared savings, two of three",
+    "testShippedCensus": "The peer census",
+    "testSilentPaymentSend": "A silent payment",
+}
+# The hero's three modes with CI media: the first of each mode's screenshots the manifest has. Without one,
+# that mode keeps its committed reference screenshot and words.
+CI_MODES = {
+    "everyday": (["07-home-after-send", "04-home-funded"], {}),
+    "both": (["22-ledger-confirmed", "21-ledger-signed"], {
+        "caption": "Your phone and a Ledger", "heading": "Two keys. Both sign.",
+        "description": "Your phone and a Ledger both approve each payment.",
+        "technical": "2-of-2 · 2 signatures"}),
+    "shared": (["13-multisig-sent", "11-multisig-funded"], {}),
+}
 
-def load_journeys(root):
-    journeys = json.loads((root / "docs/journeys.json").read_text())
-    source = (root / "upstream" / TEST_PATH).read_text()
-    matches = list(re.finditer(r"^    func (test\d+\w+)\(", source, re.M))
-    cases = {}
-    for index, match in enumerate(matches):
-        name = match.group(1)
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(source)
-        cases[name] = (source.count("\n", 0, match.start()) + 1, source[match.start():end])
-    seen, ids = set(), set()
+
+def unresolved(path):
+    with path.open("rb") as media:
+        return media.read(128).startswith(b"version https://git-lfs.github.com/spec/v1")
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as media:
+        for block in iter(lambda: media.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def positive(value):
+    return type(value) in (int, float) and value > 0
+
+
+def load_manifest(root):
+    """The version 2 CI manifest, validated against the files it names; None for the reference media."""
+    path = root / MANIFEST
+    if not path.is_file():
+        return None
+    evidence = json.loads(path.read_text())
+    if not isinstance(evidence, dict) or evidence.get("version") != 2:
+        return None
+    if not re.fullmatch(r"[0-9a-f]{40}", str(evidence.get("source_sha"))):
+        raise ValueError("journey manifest: invalid source commit")
+    run_url = evidence.get("run_url")
+    if run_url is not None and not re.fullmatch(r"https://\S+/actions/runs/\d+(/attempts/\d+)?", str(run_url)):
+        raise ValueError("journey manifest: invalid run URL")
+    tests = evidence.get("tests")
+    if evidence.get("result") != "passed" or not isinstance(tests, list) or not tests:
+        raise ValueError("journey manifest: the journey did not pass")
+    names = [test.get("name") for test in tests]
+    if len(set(names)) != len(names) or not all(isinstance(name, str) and name for name in names):
+        raise ValueError("journey manifest: invalid or duplicate test names")
+    if failed := [test["name"] for test in tests if test.get("result") != "passed" or not positive(test.get("seconds"))]:
+        raise ValueError("journey manifest: test did not pass: " + ", ".join(failed))
+    shots = evidence.get("screenshots")
+    if not isinstance(shots, list) or not shots:
+        raise ValueError("journey manifest: no screenshots")
+    seen = set()
+    files = {}
+    for shot in shots:
+        name = shot.get("name")
+        if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name) or name in seen:
+            raise ValueError(f"journey manifest: invalid or duplicate screenshot {name!r}")
+        seen.add(name)
+        if shot.get("test") is not None and shot["test"] not in names:
+            raise ValueError(f"journey manifest: {name} names a test the run does not list")
+        if type(shot.get("width")) is not int or type(shot.get("height")) is not int or min(shot["width"], shot["height"]) <= 0:
+            raise ValueError(f"journey manifest: {name} has no size")
+        files[f"screenshots/{name}.png"] = shot
+    video = evidence.get("video")
+    if not isinstance(video, dict) or video.get("path", VIDEO_PATH) != VIDEO_PATH:
+        raise ValueError("journey manifest: no video at " + VIDEO_PATH)
+    if not all(positive(video.get(key)) for key in ("width", "height", "duration_seconds", "bytes")):
+        raise ValueError("journey manifest: the video has no size or duration")
+    files[VIDEO_PATH] = video
+    for relative, entry in files.items():
+        media = root / "docs" / relative
+        if not media.is_file():
+            raise ValueError(f"journey manifest: missing {relative}")
+        if unresolved(media):
+            raise ValueError(f"journey manifest: {relative} is an unresolved LFS pointer")
+        if media.stat().st_size != entry.get("bytes", media.stat().st_size) or sha256(media) != entry.get("sha256"):
+            raise ValueError(f"journey manifest: {relative} does not match its SHA-256 or byte count")
+    return evidence
+
+
+def check_inventory(root, journeys):
+    """The checks every build makes of docs/journeys.json, with or without the pinned UI tests."""
+    seen, ids, captions = set(), set(), {}
     for journey in journeys:
         identity = journey["id"]
         if not re.fullmatch(r"[a-z][a-z0-9-]*", identity) or identity in ids:
@@ -56,6 +148,34 @@ def load_journeys(root):
         ids.add(identity)
         if journey["section"] not in {"everyday", "advanced"}:
             raise ValueError(f"{identity}: choose an everyday or advanced section")
+        if guide := journey.get("guide"):
+            if not guide.startswith("/") or not (root / "docs" / (guide[1:] + ".html")).is_file():
+                raise ValueError(f"{identity}: missing local guide {guide}")
+        for name, caption in journey.get("screenshots", {}).items():
+            if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name) or not isinstance(caption, str) or not caption:
+                raise ValueError(f"{identity}: invalid screenshot caption for {name!r}")
+            if name in captions:
+                raise ValueError(f"{identity}: screenshot {name} is already captioned")
+            captions[name] = caption
+    return captions
+
+
+def load_journeys(root, manifest=None):
+    journeys = json.loads((root / "docs/journeys.json").read_text())
+    check_inventory(root, journeys)
+    if manifest is not None:
+        # the CI journeys are not the pinned Swift tests: the manifest's results stand in for upstream/
+        return journeys, {test["name"]: test for test in manifest["tests"]}
+    source = (root / "upstream" / TEST_PATH).read_text()
+    matches = list(re.finditer(r"^    func (test\d+\w+)\(", source, re.M))
+    cases = {}
+    for index, match in enumerate(matches):
+        name = match.group(1)
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(source)
+        cases[name] = (source.count("\n", 0, match.start()) + 1, source[match.start():end])
+    seen = set()
+    for journey in journeys:
+        identity = journey["id"]
         for test in journey["tests"]:
             if test not in cases:
                 raise ValueError(f"{identity}: missing app test {test}")
@@ -67,9 +187,6 @@ def load_journeys(root):
                 raise ValueError(f"{identity}: missing screenshot {image}")
             if not any(f'"{image}", testCase: self' in cases[test][1] for test in journey["tests"]):
                 raise ValueError(f"{identity}: screenshot was not captured by its app tests")
-        if guide := journey.get("guide"):
-            if not guide.startswith("/") or not (root / "docs" / (guide[1:] + ".html")).is_file():
-                raise ValueError(f"{identity}: missing local guide {guide}")
     if unowned := set(cases) - seen:
         raise ValueError("app tests need a documented journey: " + ", ".join(sorted(unowned)))
     captured = set()
@@ -85,41 +202,108 @@ def load_journeys(root):
     video = root / "docs" / VIDEO_PATH
     if not video.is_file():
         raise ValueError(f"missing journey video: {VIDEO_PATH}")
-    with video.open("rb") as recording:
-        if recording.read(128).startswith(b"version https://git-lfs.github.com/spec/v1"):
-            raise ValueError("journey video is an unresolved LFS pointer")
+    if unresolved(video):
+        raise ValueError("journey video is an unresolved LFS pointer")
     return journeys, cases
 
 def escape(value):
     return html.escape(value, quote=True)
 
-def recorded_run():
+
+def words(identifier):
+    """A caption for a name nothing captions: 13b-multisig-transactions is "Multisig transactions"."""
+    text = re.sub(r"^\d+[a-z]?-", "", identifier).replace("-", " ").strip()
+    return (text[:1].upper() + text[1:]) or identifier
+
+
+def test_words(name):
+    text = re.sub(r"(?<!^)(?=[A-Z])", " ", re.sub(r"^test\d*", "", name)).lower().strip()
+    return (text[:1].upper() + text[1:]) or name
+
+
+def reference_acts():
+    return [(heading, [(name, caption, SHOT_WIDTH, SHOT_HEIGHT) for name, caption in shots])
+            for heading, shots in ACTS]
+
+
+def ci_acts(manifest, captions):
+    """The manifest's screenshots in order, grouped by the test that captured them."""
+    acts = {}
+    for shot in manifest["screenshots"]:
+        test = shot.get("test")
+        heading = TEST_HEADINGS.get(test) or (test_words(test) if test else "More screens")
+        acts.setdefault(heading, []).append(
+            (shot["name"], captions.get(shot["name"]) or words(shot["name"]), shot["width"], shot["height"]))
+    return list(acts.items())
+
+
+def recorded_run(acts):
     """Keep every proven capture available without making it the landing page."""
-    acts = []
-    for heading, shots in ACTS:
+    rendered = []
+    for heading, shots in acts:
         frames = "".join(
             f'<li><figure><a href="screenshots/{name}.png">'
-            f'<img src="screenshots/{name}.png" width="{SHOT_WIDTH}" height="{SHOT_HEIGHT}" '
+            f'<img src="screenshots/{name}.png" width="{width}" height="{height}" '
             f'loading="lazy" decoding="async" alt="Winnow on iPhone: {escape(caption.lower())}."></a>'
             f'<figcaption>{escape(caption)}</figcaption></figure></li>'
-            for name, caption in shots)
-        acts.append(f'<h3>{escape(heading)}</h3>\n<ol class="filmstrip">{frames}</ol>')
-    total = sum(len(shots) for _, shots in ACTS)
+            for name, caption, width, height in shots)
+        rendered.append(f'<h3>{escape(heading)}</h3>\n<ol class="filmstrip">{frames}</ol>')
+    acts, total = rendered, sum(len(shots) for _, shots in acts)
     return f'''<details class="screen-gallery" id="screens">
 <summary><span>Explore all {total} screens</span><span class="disclosure-mark" aria-hidden="true">+</span></summary>
 <div class="gallery-content">{"".join(acts)}</div></details>'''
 
 
-def homepage(journeys, cases):
+REFERENCE_MODES = [
+    ("everyday", "Everyday", "You approve", "56-home-beginner", "Your everyday wallet", "One key. One decision.", "Receive, review, send. All from your phone.", "1 key · 1 signature", 1, 1),
+    ("both", "Both keys", "2 of 2", "40-extra-device-confirmed", "Two keys, both required", "Two keys. Both sign.", "Your phone and a Ledger both approve each payment.", "2-of-2 · 2 signatures", 2, 2),
+    ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Shared savings", "Two approve. One can be away.", "Any two owners can approve a payment. Add a recovery path that opens after a delay.", "2-of-3 · 2 signatures", 3, 2),
+]
+FIELDS = ("key", "name", "rule", "shot", "caption", "heading", "description", "technical", "keys", "needed")
+
+
+def reference_media():
+    """What the homepage says about the committed reference recording."""
+    return {"modes": [dict(zip(FIELDS, mode), width=SHOT_WIDTH, height=SHOT_HEIGHT) for mode in REFERENCE_MODES],
+            "acts": reference_acts(), "poster": "56-home-beginner", "network": "SIGNET",
+            "path_label": "Recorded journey: ordinary send, MuSig2 receive and send, then 2-of-3 receive and send",
+            "note": "Real payments on private signet, recorded with the earlier Swift app.",
+            "video_label": "Ordinary, MuSig2, and 2-of-3 payments in Winnow",
+            "dialog_note": "Private signet · earlier Swift app"}
+
+
+def ci_media(manifest, captions):
+    """What the homepage says about a CI run's media: its screenshots, sizes and network."""
+    sizes = {shot["name"]: (shot["width"], shot["height"]) for shot in manifest["screenshots"]}
+    modes = []
+    for mode in REFERENCE_MODES:
+        mode = dict(zip(FIELDS, mode), width=SHOT_WIDTH, height=SHOT_HEIGHT)
+        candidates, words_for_ci = CI_MODES[mode["key"]]
+        shot = next((name for name in candidates if name in sizes), None)
+        if shot is None:
+            print(f"homepage: no CI screenshot for {mode['key']} ({', '.join(candidates)}); "
+                  f"keeping {mode['shot']}", file=sys.stderr)
+        else:
+            mode.update(words_for_ci, shot=shot, width=sizes[shot][0], height=sizes[shot][1])
+        modes.append(mode)
+    network = str(manifest.get("network") or "regtest")
+    return {"modes": modes, "acts": ci_acts(manifest, captions), "poster": modes[0]["shot"],
+            "network": network.upper(),
+            "path_label": "Recorded journey: an ordinary send, a 2-of-2 payment with a Ledger, then a 2-of-3 "
+                          "payment and its recovery path",
+            "note": f"Real payments on a private {network} node. Shared accounts use Bitcoin Core cosigners; "
+                    "the Ledger is emulated.",
+            "video_label": "Ordinary, Ledger 2-of-2, 2-of-3, and silent payments in Winnow",
+            "dialog_note": f"Private {network} · Bitcoin Core cosigners"}
+
+
+def homepage(journeys, cases, media=None):
+    media = media or reference_media()
     title = "Winnow — Bitcoin, on your terms"
     intro = "A Bitcoin wallet for your iPhone. Pay from your phone, add a Ledger as a second key, or share a wallet with a way back after a delay."
-    modes = [
-        ("everyday", "Everyday", "You approve", "56-home-beginner", "Your everyday wallet", "One key. One decision.", "Receive, review, send. All from your phone.", "1 key · 1 signature", 1, 1),
-        ("both", "Both keys", "2 of 2", "40-extra-device-confirmed", "Two keys, both required", "Two keys. Both sign.", "Your phone and a Ledger both approve each payment.", "2-of-2 · 2 signatures", 2, 2),
-        ("shared", "Any two", "2 of 3", "28-savings-confirmed", "Shared savings", "Two approve. One can be away.", "Any two owners can approve a payment. Add a recovery path that opens after a delay.", "2-of-3 · 2 signatures", 3, 2),
-    ]
     choices, policies, screens = [], [], []
-    for index, (key, name, rule, shot, caption, heading, description, technical, keys, needed) in enumerate(modes):
+    for index, mode in enumerate(media["modes"]):
+        key, name, rule, shot, caption, heading, description, technical, keys, needed = (mode[field] for field in FIELDS)
         choices.append(f'''<label class="mode-choice"><input type="radio" name="wallet-mode" id="mode-{key}" value="{key}" aria-controls="policy-{key} screen-{key}"{' checked' if index == 0 else ''}>
 <span><b>{name}</b><small>{rule}</small></span></label>''')
         dots = ''.join(f'<i class="key-dot{" absent" if n >= needed else ""}">{"✓" if n < needed else "–"}</i>' for n in range(keys))
@@ -127,7 +311,7 @@ def homepage(journeys, cases):
 <div class="policy-diagram" aria-hidden="true">{dots}<span class="policy-line"></span><span class="policy-result">{needed}/{keys}</span></div>
 <h2>{heading}</h2><p>{description}</p><a class="technical" href="/vaults">{technical} <span aria-hidden="true">↗</span></a></div>''')
         screens.append(f'''<figure class="wallet-screen mode-{key}" id="screen-{key}">
-<a href="screenshots/{shot}.png" aria-label="Enlarge {caption.lower()}"><img src="screenshots/{shot}.png" width="{SHOT_WIDTH}" height="{SHOT_HEIGHT}" loading="{'eager' if index == 0 else 'lazy'}" {'fetchpriority="high"' if index == 0 else ''} decoding="async" alt="{caption} in the real Winnow app."></a>
+<a href="screenshots/{shot}.png" aria-label="Enlarge {caption.lower()}"><img src="screenshots/{shot}.png" width="{mode['width']}" height="{mode['height']}" loading="{'eager' if index == 0 else 'lazy'}" {'fetchpriority="high"' if index == 0 else ''} decoding="async" alt="{caption} in the real Winnow app."></a>
 <figcaption><span class="screen-number">0{index + 1} / 03</span>{caption}</figcaption></figure>''')
     return f'''<!doctype html>
 <!-- Generated by scripts/build-site. -->
@@ -151,25 +335,58 @@ def homepage(journeys, cases):
 <p class="availability">Open source <span>·</span> Early access <span>·</span> <a href="https://testflight.apple.com/join/83djpNE7">TestFlight</a> (0.9, rewritten in Lean 4)</p>
 <fieldset class="mode-picker"><legend>Choose who signs</legend><div class="mode-options">{"".join(choices)}</div></fieldset>
 <div class="policies" aria-live="polite">{"".join(policies)}</div></div>
-<div class="product-stage"><div class="stage-heading"><span>THE ACTUAL APP</span><span class="stage-dot" aria-hidden="true"></span><span>RECORDED ON SIGNET</span></div>
+<div class="product-stage"><div class="stage-heading"><span>THE ACTUAL APP</span><span class="stage-dot" aria-hidden="true"></span><span>RECORDED ON {media["network"]}</span></div>
 <div class="wallet-screens">{"".join(screens)}</div>
 <a class="stage-link" href="/recording" data-watch><span class="play-icon" aria-hidden="true">▶</span> See the full journey <span aria-hidden="true">↗</span></a></div>
 </section>
 <section class="proof" aria-labelledby="proof-title"><div class="proof-heading"><p class="eyebrow">SEE FOR YOURSELF</p><h2 id="proof-title">One wallet. Three ways to pay.</h2></div>
-<div class="journey-path" aria-label="Recorded journey: ordinary send, 2-of-2 receive and send, then 2-of-3 receive and send"><span><b>01</b> Everyday</span><i aria-hidden="true">→</i><span><b>02</b> Both keys</span><i aria-hidden="true">→</i><span><b>03</b> Any two</span></div>
-<p class="provenance-note">Real payments on private signet, recorded with the earlier Swift app. <a href="/recording">Recording &amp; source ↗</a></p>
-{recorded_run()}</section>
+<div class="journey-path" aria-label="{escape(media["path_label"])}"><span><b>01</b> Everyday</span><i aria-hidden="true">→</i><span><b>02</b> Both keys</span><i aria-hidden="true">→</i><span><b>03</b> Any two</span></div>
+<p class="provenance-note">{escape(media["note"])} <a href="/recording">Recording &amp; source ↗</a></p>
+{recorded_run(media["acts"])}</section>
 </main>
 <footer class="wrap"><p class="footer-brand">winnow<span>Your phone connects directly to Bitcoin.</span></p><nav aria-label="Footer"><a href="/vaults">Shared wallets</a><a href="/roadmap">Roadmap</a><a href="/privacy">Privacy</a></nav></footer>
 <dialog id="journey-dialog" aria-labelledby="video-title"><div class="dialog-bar"><h2 id="video-title">The wallet, in action.</h2><form method="dialog"><button autofocus aria-label="Close recording">Close <span aria-hidden="true">×</span></button></form></div>
-<video controls playsinline preload="none" poster="/screenshots/56-home-beginner.png" aria-label="Ordinary, 2-of-2, and 2-of-3 payments in Winnow"><source src="/{VIDEO_PATH}" type="video/mp4"><a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.</video>
-<p>Private signet · earlier Swift app · <a href="/recording">Recording provenance</a></p></dialog>
+<video controls playsinline preload="none" poster="/screenshots/{media["poster"]}.png" aria-label="{escape(media["video_label"])}"><source src="/{VIDEO_PATH}" type="video/mp4"><a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.</video>
+<p>{escape(media["dialog_note"])} · <a href="/recording">Recording provenance</a></p></dialog>
 </body></html>
 '''
 
-def recording_page(root):
+def commit_url(evidence):
+    """The tested commit, in the repository whose run produced the media."""
+    run = re.match(r"(https://[^/]+/[^/]+/[^/]+)/actions/runs/", str(evidence.get("run_url") or ""))
+    return f'{run.group(1) if run else WALLET}/commit/{evidence["source_sha"]}'
+
+
+def ci_details(evidence):
+    video, original = evidence["video"], evidence.get("original_video")
+    run = (f'<a href="{escape(evidence["run_url"])}">this successful CI run</a>' if evidence.get("run_url")
+           else "a local run (no CI run URL)")
+    device = evidence.get("device") or {}
+    simulator = ""
+    if device.get("name"):
+        simulator = f' on an {escape(str(device["name"]))} simulator'
+        simulator += f' ({escape(str(device["os"]))})' if device.get("os") else ""
+    tests = "".join(f'<li><code>{escape(test["name"])}</code>: {escape(test["result"])}, {test["seconds"]:.3f} seconds</li>'
+                    for test in evidence["tests"])
+    source = escape(evidence["source_sha"])
+    branch = f' on <code>{escape(evidence["branch"])}</code>' if evidence.get("branch") else ""
+    kept = (f' The untouched simulator recording was {original["width"]} × {original["height"]}, '
+            f'{original["duration_seconds"]:.3f} seconds, {original["bytes"]:,} bytes.' if isinstance(original, dict) else "")
+    return f'''<p>This recording and its {len(evidence["screenshots"])} checkpoint screenshots come from {run} of the wallet’s UI journeys{simulator}, paying on a private {escape(str(evidence.get("network") or "regtest"))} node.</p>
+<p>Source: <a href="{escape(commit_url(evidence))}"><code>{source}</code></a>{branch}. Every test passed, {evidence["test_seconds"]:.3f} seconds in all:</p>
+<ul>{tests}</ul>
+<p>The browser copy is H.264, {video["width"]} × {video["height"]}, {video["duration_seconds"]:.3f} seconds, {video["bytes"]:,} bytes.{kept}</p>
+<p><a href="/journey-provenance.json">Media checksums and the run’s details</a>. The tests’ assertions establish success; the video illustrates the flow.</p>
+<p>The site takes these media from the wallet’s newest successful run on each build. Other guide illustrations retain their <a href="{SOURCE}docs/screenshots/README.md">historical provenance</a>.</p>'''
+
+
+def recording_page(root, evidence_v2=None):
     manifest = root / "docs/journey-provenance.json"
-    if manifest.exists():
+    poster, label = "56-home-beginner", "Ordinary and shared-account payments in Winnow"
+    if evidence_v2 is not None:
+        details = ci_details(evidence_v2)
+        poster, label = evidence_v2.get("poster", poster), "The wallet’s UI journeys in Winnow"
+    elif manifest.exists():
         evidence = json.loads(manifest.read_text())
         source = escape(evidence["source_sha"])
         video = evidence["video"]
@@ -187,7 +404,7 @@ def recording_page(root):
 <style>video{{display:block;width:min(100%,26rem);max-height:75vh;margin:1.5rem auto;border:1px solid var(--rule);border-radius:1rem;background:#111}}</style></head>
 <body><a class="skip-link" href="#main">Skip to content</a>
 <header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/blog/">Blog</a><a href="/research/">Research</a><a href="/architecture">How it works</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header><main id="main"><p class="page-kicker">Recorded in the real app</p><h1>Wallet journey</h1>
-<video controls playsinline preload="metadata" poster="/screenshots/56-home-beginner.png" aria-label="Ordinary and shared-account payments in Winnow">
+<video controls playsinline preload="metadata" poster="/screenshots/{poster}.png" aria-label="{escape(label)}">
 <source src="/{VIDEO_PATH}" type="video/mp4">
 <a href="/{VIDEO_PATH}">Download the wallet journey recording</a>.
 </video>
@@ -199,9 +416,15 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail if generated pages are stale")
     parser.add_argument("--root", type=Path, default=ROOT, help="repository or staging root")
     args = parser.parse_args()
-    journeys, cases = load_journeys(args.root)
-    pages = {"index.html": homepage(journeys, cases),
-             "recording.html": recording_page(args.root)}
+    manifest = load_manifest(args.root)
+    journeys, cases = load_journeys(args.root, manifest)
+    if manifest is None:
+        media = reference_media()
+        pages = {"index.html": homepage(journeys, cases, media), "recording.html": recording_page(args.root)}
+    else:
+        media = ci_media(manifest, check_inventory(args.root, journeys))
+        pages = {"index.html": homepage(journeys, cases, media),
+                 "recording.html": recording_page(args.root, dict(manifest, poster=media["poster"]))}
     for name, rendered in pages.items():
         output = args.root / "docs" / name
         if args.check:
@@ -209,7 +432,9 @@ def main():
                 raise SystemExit(f"{name} is stale; run scripts/build-site")
         else:
             output.write_text(rendered)
-    print(f"Documented features: {len(journeys)}; UI test scenarios: {len(cases)}")
+    source = (f"CI journey media from {manifest.get('run_url') or 'a local run'}" if manifest
+              else "the committed reference media")
+    print(f"Documented features: {len(journeys)}; UI test scenarios: {len(cases)}; {source}")
 
 if __name__ == "__main__":
     main()

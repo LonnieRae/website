@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""Take the wallet's newest UI-journey media from its CI into docs/, for this build only.
+
+  scripts/fetch-journey-media [--repo winnowwallet/winnow-lean] [--branch main] [--workflow ci.yml]
+                              [--run-id ID] [--out docs] [--strict]
+
+Finds the newest successful run of the wallet's workflow on the branch that still has a `journey-media`
+artifact (--run-id names one to try first), downloads it, and checks it before touching
+docs/: a version 2 journey-provenance.json whose tests all passed and whose run is that run, every
+screenshot and the video present with the SHA-256 and byte count it names, nothing over 25 MiB. Then it
+writes docs/screenshots/<name>.png, docs/videos/wallet-journey.mp4 and docs/journey-provenance.json.
+
+These are build outputs: CI overwrites the committed (Git LFS) media in its own workspace; never commit
+them. The wallet repository is public: its runs and artifacts are listed without a token, but GitHub only
+serves an artifact's zip to an authenticated request, so the download uses GITHUB_TOKEN (in Actions, the
+website workflow's own token); listings use it too when present, and go without it if it is refused. On
+any failure it says why, leaves the committed media alone and exits 0, unless --strict.
+"""
+import argparse
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+import zipfile
+
+ROOT = Path(__file__).resolve().parent.parent
+API = "https://api.github.com"
+ARTIFACT = "journey-media"
+MANIFEST = "journey-provenance.json"
+VIDEO = "videos/wallet-journey.mp4"
+MAX_BYTES = 25 * 1024 * 1024
+MAX_ARCHIVE = 512 * 1024 * 1024
+NAME = re.compile(r"[a-z0-9][a-z0-9-]*")
+SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+class Unusable(Exception):
+    pass
+
+
+class Client:
+    def __init__(self, token, api=API):
+        self.token, self.api = token, api
+
+    def request(self, url, token=None):
+        request = urllib.request.Request(url if url.startswith("https://") else self.api + url)
+        request.add_header("Accept", "application/vnd.github+json")
+        request.add_header("X-GitHub-Api-Version", "2022-11-28")
+        request.add_header("User-Agent", "winnow-website-fetch-journey-media")
+        if token:
+            # unredirected: the artifact download redirects to blob storage, which must not see the token
+            request.add_unredirected_header("Authorization", f"Bearer {token}")
+        return urllib.request.urlopen(request, timeout=120)
+
+    def json(self, path):
+        """Public data: with the token when there is one (its rate limit is higher), else, or if refused, without."""
+        if self.token:
+            try:
+                with self.request(path, self.token) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                error.close()
+                if error.code not in (401, 403):
+                    raise
+                print(f"the token was refused for {path} (HTTP {error.code}); asking without it")
+        with self.request(path) as response:
+            return json.load(response)
+
+    def download(self, url, limit=MAX_ARCHIVE):
+        if not self.token:
+            raise Unusable("GitHub serves artifact zips only to an authenticated request; set GITHUB_TOKEN")
+        with self.request(url, self.token) as response:
+            data = response.read(limit + 1)
+        if len(data) > limit:
+            raise Unusable(f"the artifact is over {limit // (1024 * 1024)} MiB")
+        return data
+
+
+def workflow_of(run):
+    return run.get("path", "").split("@")[0].rsplit("/", 1)[-1]
+
+
+def usable_run(client, repo, run, branch, workflow):
+    """The run's live journey-media artifact, or Unusable saying why not."""
+    if workflow_of(run) != workflow:
+        raise Unusable(f"run {run['id']} is {run.get('path')}, not {workflow}")
+    if run.get("head_branch") != branch:
+        raise Unusable(f"run {run['id']} is on {run.get('head_branch')}, not {branch}")
+    if run.get("status") != "completed" or run.get("conclusion") != "success":
+        raise Unusable(f"run {run['id']} is {run.get('status')}/{run.get('conclusion')}, not a success")
+    listing = client.json(f"/repos/{repo}/actions/runs/{run['id']}/artifacts?name={ARTIFACT}&per_page=10")
+    live = [a for a in listing.get("artifacts", []) if a.get("name") == ARTIFACT and not a.get("expired")]
+    if not live:
+        raise Unusable(f"run {run['id']} has no unexpired {ARTIFACT} artifact")
+    return max(live, key=lambda a: a.get("created_at") or "")
+
+
+def find(client, repo, branch, workflow, run_id=None):
+    """(run, artifact) for --run-id if usable, else the newest successful run with the artifact."""
+    reasons = []
+    if run_id:
+        try:
+            run = client.json(f"/repos/{repo}/actions/runs/{run_id}")
+            return run, usable_run(client, repo, run, branch, workflow)
+        except Unusable as why:
+            reasons.append(str(why))
+            print(f"{why}; looking for the newest successful run instead")
+    query = urllib.parse.urlencode({"branch": branch, "status": "success", "per_page": 15})
+    runs = client.json(f"/repos/{repo}/actions/workflows/{urllib.parse.quote(workflow)}/runs?{query}")
+    for run in runs.get("workflow_runs", []):
+        try:
+            return run, usable_run(client, repo, run, branch, workflow)
+        except Unusable as why:
+            reasons.append(str(why))
+    raise Unusable(f"no successful {workflow} run on {branch} has a {ARTIFACT} artifact"
+                   + (f" ({'; '.join(reasons[:3])})" if reasons else ""))
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify(archive, run):
+    """{relative path: bytes} for the manifest and every file it names, or Unusable."""
+    try:
+        bundle = zipfile.ZipFile(io.BytesIO(archive))
+    except zipfile.BadZipFile as error:
+        raise Unusable(f"the artifact is not a zip: {error}")
+    members = {info.filename: info for info in bundle.infolist() if not info.is_dir()}
+
+    def read(name):
+        info = members.get(name)
+        if info is None:
+            raise Unusable(f"the artifact has no {name}")
+        if info.file_size > MAX_BYTES:
+            raise Unusable(f"{name} is {info.file_size:,} bytes, over the 25 MiB Pages file limit")
+        data = bundle.read(info)
+        if len(data) > MAX_BYTES:
+            raise Unusable(f"{name} is over the 25 MiB Pages file limit")
+        return data
+
+    raw = read(MANIFEST)
+    try:
+        evidence = json.loads(raw)
+    except ValueError as error:
+        raise Unusable(f"{MANIFEST} is not JSON: {error}")
+    if not isinstance(evidence, dict) or evidence.get("version") != 2:
+        raise Unusable(f"{MANIFEST} is not version 2")
+    if evidence.get("result") != "passed":
+        raise Unusable("the journey did not pass")
+    tests = evidence.get("tests")
+    if not isinstance(tests, list) or not tests:
+        raise Unusable("the manifest lists no tests")
+    if failed := [str(t.get("name")) for t in tests if not isinstance(t, dict) or t.get("result") != "passed"]:
+        raise Unusable("not every test passed: " + ", ".join(failed))
+    if not re.fullmatch(r"[0-9a-f]{40}", str(evidence.get("source_sha"))):
+        raise Unusable("the manifest has no source commit")
+    run_url = str(evidence.get("run_url"))
+    if not re.fullmatch(rf"https://\S+/actions/runs/{run['id']}(/attempts/\d+)?", run_url):
+        raise Unusable(f"the manifest's run {run_url} is not run {run['id']}")
+    if evidence.get("source_sha") != run.get("head_sha"):
+        raise Unusable(f"the manifest's commit is not run {run['id']}'s ({run.get('head_sha')})")
+    video = evidence.get("video")
+    if not isinstance(video, dict):
+        raise Unusable("the run published no video: " + str(evidence.get("video_omitted", "no reason given")))
+    if video.get("path", VIDEO) != VIDEO:
+        raise Unusable(f"the video is not at {VIDEO}")
+    shots = evidence.get("screenshots")
+    if not isinstance(shots, list) or not shots:
+        raise Unusable("the manifest lists no screenshots")
+    expected = {VIDEO: video}
+    for shot in shots:
+        name = shot.get("name") if isinstance(shot, dict) else None
+        if not isinstance(name, str) or not NAME.fullmatch(name):
+            raise Unusable(f"invalid screenshot name: {name!r}")
+        path = f"screenshots/{name}.png"
+        if path in expected:
+            raise Unusable(f"duplicate screenshot {name}")
+        expected[path] = shot
+    files = {MANIFEST: raw}
+    for path, entry in expected.items():
+        if not SHA256.fullmatch(str(entry.get("sha256"))) or type(entry.get("bytes")) is not int:
+            raise Unusable(f"{path} has no SHA-256 or byte count in the manifest")
+        data = read(path)
+        if len(data) != entry["bytes"] or digest(data) != entry["sha256"]:
+            raise Unusable(f"{path} does not match its SHA-256 or byte count")
+        if path.endswith(".png") and not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise Unusable(f"{path} is not a PNG")
+        files[path] = data
+    return evidence, files
+
+
+def place(files, out):
+    """Write the verified files under out/, the manifest last."""
+    for path, data in sorted(files.items(), key=lambda item: item[0] == MANIFEST):
+        target = out / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as temporary:
+            temporary.write(data)
+        os.replace(temporary.name, target)
+
+
+def fetch(client, args):
+    run, artifact = find(client, args.repo, args.branch, args.workflow, args.run_id)
+    print(f"run {run['id']} ({run.get('head_sha', '')[:12]}, {run.get('event')}): "
+          f"artifact {artifact['id']}, {artifact.get('size_in_bytes', 0):,} bytes")
+    evidence, files = verify(client.download(artifact["archive_download_url"]), run)
+    place(files, args.out)
+    print(f"placed {len(evidence['screenshots'])} screenshots, the video and {MANIFEST} in {args.out}")
+    return evidence
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--repo", default="winnowwallet/winnow-lean")
+    parser.add_argument("--branch", default="main")
+    parser.add_argument("--workflow", default="ci.yml")
+    parser.add_argument("--run-id", type=lambda value: int(value) if value else None,
+                        help="a run to try before the newest (empty: none)")
+    parser.add_argument("--out", type=Path, default=ROOT / "docs", help="the site's docs directory")
+    parser.add_argument("--strict", action="store_true", help="exit 1 instead of keeping the committed media")
+    args = parser.parse_args(argv)
+    try:
+        fetch(Client(os.environ.get("GITHUB_TOKEN") or None), args)
+    except (Unusable, urllib.error.URLError, OSError, ValueError, KeyError, TimeoutError) as error:
+        detail = f"HTTP {error.code} {error.reason}" if isinstance(error, urllib.error.HTTPError) else str(error)
+        prefix = "::warning::" if os.environ.get("GITHUB_ACTIONS") else ""
+        print(f"{prefix}fetch-journey-media: keeping the committed media: {detail}", file=sys.stderr)
+        return 1 if args.strict else 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
