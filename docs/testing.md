@@ -1,142 +1,97 @@
-# Features, journeys, and evidence
+# Testing the Lean app
 
-This developer policy explains the test suites and evidence requirements.
-The [CI runbook](../.github/internal/ci-release.md) describes how to run checks
-and inspect their artifacts.
+Winnow 0.9.x is written in Lean 4 in
+[winnowwallet/winnow-lean](https://github.com/winnowwallet/winnow-lean). This
+page describes how that app is tested and what the site's journey media show.
+The Swift app's suites (WalletCoreTests, AppTests, the single signet journey)
+ended with 0.8.13; their history stays in
+[winnowwallet/winnow](https://github.com/winnowwallet/winnow), and the retired
+[tdx CI notes](engineering/tdx-ci.md) describe how they ran.
 
-The product is the wallet app for iPhone, iPad, and Apple silicon Mac, plus
-explicit debugging tools. Automated UI coverage is limited to iPhone.
-Everyday and advanced features are documented in docs/journeys.json.
-scripts/build-site generates the homepage and recording page, referencing
-captures named by the UI journey. XCTest takes the checkpoint screenshots;
-scripts/prepare-site-artifact copies them and normalizes the host recording.
-Generation refuses a checkpoint the UI journey does not capture. Recording evidence identifies the steps
-exercised by the current focused UI journey. The
-public roadmap owns future work; it is not evidence that a feature ships.
+## CI
 
-## What earns a place
+Every pull request and push to main runs LeanNative's reusable `ios-app`
+workflow (`.github/workflows/ci.yml` in winnow-lean) on WarpBuild runners. A
+fork's pull request gets no CI. The Lean is built once and cached; the other
+jobs restore it and run in parallel.
 
-- A user-facing feature needs clear usage instructions and focused tests for
-  its decisions and failure cases. One UI integration journey checks ordinary,
-  MuSig2, and script-path 2-of-3 receiving, sending, and confirmation through
-  the real app. Detailed coverage belongs in app, wallet, and protocol tests
-  without repeated screen navigation.
-- A debugging command needs a concrete diagnostic purpose, a runbook, and
-  meaningful command/protocol checks. Help output alone does not prove a live
-  network operation.
-- A lower-level component must serve one of those purposes or enforce a named
-  security property. Do not add a production API just to make a test convenient.
-- Delete obsolete features with their tests. Delete duplicate happy-path tests
-  when the actual app journey and relevant independent checks cover the promise.
-  Keep vectors, adversarial cases, arithmetic bounds, storage integrity,
-  authorization, and recovery regressions when their invariant still exists.
+| Job | What it runs |
+| --- | --- |
+| `build` | Builds `Lean/` and `LeanApp/`, which checks every proof, and the test executables. Imports the census peer list once (`scripts/import-census`). |
+| `tests` | `census-check` on that list, the scripts' unit tests, `multisig-test`, `ledger-test`, `silent-payment-test`, `records-test`, `multisig-app-test`, `ledger-transport-test`. |
+| `extra` | `scripts/ci-regtest`: `io-test`, `backend-test` and `multisig-differential` against a disposable regtest Bitcoin Core (the pinned 31.1 release). |
+| `app` | Debug and Release simulator builds and a Release device build, each checked for Swift; `verify-release-no-test-mode`; the UI journeys; then the `journey-media` artifact. |
 
-## Architecture follows the app
+`verify-release-no-test-mode` launches both simulator builds with test mode's
+environment: Debug must start the test run, Release must ignore it.
 
-WalletCore now owns wallet state, transaction construction, peer connections,
-headers, filters, and relay in one package target. The app directly orchestrates
-those parts; there is no extra wallet/network facade or parallel library-only
-send/scan workflow. Cryptography, descriptors, and wallet networking now share
-WalletCore too, including their byte encoders. Actors retain their existing
-ownership and lifetimes. Offline inspection is part of winnow-debug; there is no
-separate CLI or demo signing path.
+## The five journeys
 
-InMemoryKeyStore belongs to TestSupport, not the shipping wallet. The module
-version placeholders and duplicate binary serializers are removed. There is one
-app release version.
+The UI journeys are Objective-C XCUITests (`LeanApp/ios/UITests`, target
+`WinnowLeanUITests`). Each launches the app in test mode on an iPhone Duo
+simulator against a regtest node, finds controls by the identifiers the views
+give them, and checks the app's results against the node.
 
-## Which tests say what
+- `testCreateReceiveSendConfirm`: create a wallet, receive from the node,
+  review and send a payment the node accepts, see it confirm.
+- `testLedgerPairVerifySpend`: pair test mode's simulated Ledger, have it
+  verify the receive address, and spend with the phone's and the Ledger's
+  signatures.
+- `testMultisigTwoOfThreeWithRecovery`: a 2-of-3 with two Bitcoin Core
+  wallets, built in the app. The first address is Core's; the phone and both
+  Cores sign, and Core accepts a witness with exactly two signatures. After the
+  one-day delay the phone alone spends on the recovery path.
+- `testShippedCensus`: the census peer list the build ships shows in Settings
+  on mainnet.
+- `testSilentPaymentSend`: pay a BIP352 code. The node's transaction pays the
+  one output that backend-test's receiver, written from the BIP's receiving
+  side, finds, and the receipt shows its address.
 
-The one integration test is `test01CreateReceiveSendConfirm` in
-`UITests/WinnowAppUITests.swift`. It starts with a quick ordinary receive and
-send, then receives and sends with a 2-of-2 MuSig2 account shared by the phone
-and one Core cosigner. Finally it receives and sends through a script-path
-2-of-3 account containing the phone’s key and two Core cosigners. Both Core
-wallets know that account, but only the phone and one Core key approve its
-payment. The test checks the funded destinations, accepted transactions, and
-confirmation through the app. The private signet fixture mines blocks
-automatically so confirmations follow promptly. The automated journey runs on an iPhone simulator; there is no iPad UI
-job currently.
+What the journeys do not cover: a physical Ledger (CI's is simulated; the
+owner's Nano X co-signed a mainnet 2-of-2 on 26 October 2026 with the Swift
+app), receiving silent payments (Winnow does not), live Tor and I2P gateways,
+iCloud, background tasks scheduled by iOS, and iPad layouts.
 
-This is one continuous UI/video journey, not a broad interoperability matrix.
-There is no separate DifferentialTests target or node comparison job. Other
-signing orders, combinations, and physical hardware need their own evidence.
-The retained video and screenshots are evidence only for the revision and
-coverage recorded in their provenance.
+## Run them locally
 
-CI has one `build` job for package, app, fuzz, lint/test gates and release checks,
-followed by a reusable `website` job. One Debug build serves app unit tests
-and this journey with the same simulator and build directory. A fresh run's
-`app-tests-…` artifact contains `units/` and `journey/` result bundles and logs,
-plus the journey recording and checkpoint screenshots. The build job runs on
-GitHub-hosted Apple silicon (`macos-26`) with per-run build products and a fresh
-signet fixture, independently of any developer Mac. Fork pull requests use
-the same image for package and app checks without the private node, UI journey
-or deployment credentials. Manual, nightly and release runs execute fresh tests.
+From a winnow-lean checkout, with the Lean toolchain
+`leanprover/lean4:v4.35.0` (elan):
 
-For website-only edits, `scripts/ci-journey-cache` hashes test/build inputs and
-finds a successful same-repository run's normalized media artifact. Matching
-inputs allow build and wallet test steps to skip while the current website is
-generated and checked. App-bundled HTML/CSS stays in the fingerprint; changed
-inputs, missing media or API errors require fresh tests. Reused media retains
-its original source and result, rather than claiming a new test execution.
-There are no separate architecture, complexity, selector or LOC jobs. The
-legacy LOC reporter and its tests were removed.
+```sh
+cd LeanApp
+lake build backend-test records-test
+./.lake/build/bin/backend-test               # end to end against a fresh regtest bitcoind
+./.lake/build/bin/records-test
+cd ..
+scripts/build-ios Debug                      # the app for the simulator, from a clean checkout
+scripts/ui-journeys                          # the UI journeys against a regtest fixture
+```
 
-The detailed rules stay in smaller suites. `AppTests/PeoplePaymentTests.swift`
-and `AppTests/SenderLabelTests.swift` cover people, payment decisions, and sender
-labels. `AppTests/WalletStartupTests.swift` and `AppTests/VaultBackupTests.swift`
-cover persisted startup and backup state. `Tests/WalletCoreTests/VaultSpendTests.swift`
-checks threshold and missing-signature rules. These focused checks supplement
-the journey without repeating every behavior through screen navigation.
+`scripts/ui-journeys` runs the journeys as CI does, on a throwaway simulator
+unless `UI_SIMULATOR` names one, and keeps the result bundle, a screen
+recording, the screenshots and the app's test-mode journals in
+`LeanApp/ios/build/ui-journey`. Pass `xcodebuild` arguments to run one, for
+example
+`-only-testing:WinnowLeanUITests/WinnowLeanUITests/testCreateReceiveSendConfirm`.
+Tests find Bitcoin Core through `WINNOW_BITCOIND` and `WINNOW_BITCOIN_CLI`,
+Homebrew or the PATH; `scripts/ci-regtest` uses the pinned release that
+`scripts/install-bitcoin` downloads.
 
-Policy explanations must come from the actual descriptor, including 1-of-n.
-Names, contact mappings, and PSBT metadata must not change signing requirements
-or establish output ownership. Keep adversarial checks for altered policies,
-forged change metadata, missing signatures, and nonce reuse. Provider, trust,
-physical key separation, and coercion claims require evidence outside a
-simulator; their unverified integrations belong on the roadmap.
+## The journey media on this site
 
-- UITests runs the one focused journey against a disposable signet node and
-  checks its screen and node outcomes. The host records one continuous video
-  for review and the website; checkpoint screenshots remain secondary artifacts.
-- AppTests checks protected actions, review invalidation, persisted state,
-  network separation, people, and OS integration.
-- WalletCoreTests checks wallet/network invariants and hostile peer behavior.
-  The former BitcoinP2PTests are grouped under WalletCoreTests/Network.
-- BitcoinCoreTests retains independent vectors and parser/cryptographic bounds.
-- ToolsTests and the fuzz harness cover debugging commands and hostile inputs.
+After the journeys, `scripts/journey-media` in winnow-lean turns the run into
+the `journey-media` artifact: the screenshots, a browser copy of the recording
+and `journey-provenance.json` (the run, source commit, device, each test's
+result and seconds, and each file's SHA-256).
 
-The larger UI story suite and separate differential matrix are retired. The
-three payment flows share one journey; other detailed behavior and interruptions
-use focused tests. The [recording page](https://winnowwallet.com/recording)
-shows the continuous journey and its source provenance. Older guide
-illustrations retain their provenance.
+This site's `scripts/fetch-journey-media` downloads that artifact from the
+newest successful `ci.yml` run on winnow-lean's main, checks every file against
+the provenance file, and writes the media over the committed files in the CI
+workspace only. `scripts/build-site` then builds the homepage gallery and the
+[recording page](https://winnowwallet.com/recording) from it. When the fetch
+fails, the site publishes the committed reference media from the Swift app
+([screenshots](screenshots/README.md), [video](videos/README.md)) instead.
 
-## What generated pages do and do not establish
-
-Generation refuses a missing test selector, an app scenario with no documented
-journey, or a missing/unresolved journey video. The recording page embeds the
-video once with its tested source and run; the signing guides explain the
-policies and setup steps.
-This catches documentation drift; it is not runtime coverage analysis. Changes
-need checks appropriate to their behavior; the integration journey does not replace
-relevant invariant tests.
-
-The xcresult bundle and logs are authoritative for success, failure, and the
-tested revision. The host records the simulator while the journey runs; the
-recording and checkpoint screenshots do not replace test assertions. Keep the
-revision, device, date, and result bundle together in the deployment's
-`/recording` provenance. [Repository video notes](videos/README.md) preserve
-the dated history of checked-in recordings.
-`scripts/prepare-site-artifact` assembles a fresh website with either a new
-journey or cached normalized video and all 16 checkpoints. Its `--media-output`
-bundle preserves source provenance for reuse. The deployment's `/recording`
-page identifies that source and run. The website job downloads the ready site
-artifact from the same CI run and deploys it without rebuilding or running its
-content. Trusted PRs get previews; main gets production. Historical images,
-timing files, audit notes, and findings retain their historical status.
-
-Simulator tests do not establish locked-device Keychain enforcement, battery
-life, real-world peer independence, or independent review. Keep those limitations
-explicit. Future work belongs on the separate roadmap.
+The result bundle and logs are what establish a pass. The recording and
+screenshots show the run; they do not replace its assertions, and they are
+evidence only for the commit and device their provenance names.

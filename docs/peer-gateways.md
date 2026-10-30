@@ -45,43 +45,28 @@ Advanced Settings → Peer networks offers:
 
 Tor and I2P destinations are sent by name to their respective SOCKS gateway;
 failed overlay connections never dial those destinations directly. Manual,
-persisted, signed-census and seed candidates all obey the selection. The signed
-census now retains validated v3 onion and ordinary base32 I2P entries. It still
-requires the existing publisher signature, freshness and clearnet diversity
-checks. No overlay candidates are bundled.
+persisted, census and seed candidates all obey the selection. The census list
+each release ships carries validated v3 onion and ordinary base32 I2P entries
+beside clearnet ones, held to the same diversity checks.
 
-Peer-list downloads and explorer requests use direct HTTP when clearnet is
-selected and SOCKS through Tor otherwise. I2P-only routing fetches the signed
-census from its I2P mirror through the I2P gateway and refuses every public
-host, so explorer requests stay off. The census signature is checked as usual;
-the mirror is not trusted. The mirror runs on the I2P gateway, copies the
-signed files from the public census every 30 minutes, and serves them at
-`CensusCatalog.i2pMirror`.
+Explorer requests use direct HTTP when clearnet is selected and SOCKS through
+Tor otherwise. I2P-only routing makes no HTTP request at all, so it never asks
+its gateway for a public host and explorer requests stay off.
 Corrupt saved routing settings keep networking offline until replaced.
 
-The project's gateway VMs, including the I2P census mirror, are reproducible
-from [winnowwallet/census `gateways/`](https://github.com/winnowwallet/census/tree/main/gateways).
+[winnowwallet/census `gateways/`](https://github.com/winnowwallet/census/tree/main/gateways)
+reproduces the gateway VMs the project ran.
 
 ## Validation
 
-`swift test --filter 'PeerGatewayTests|TailnetGatewayDiscoveryTests'` checks
-route isolation, candidate filtering, DNS parsing, SOCKS checks and cancellation.
-The app tests cover persistence, corrupt preferences and stale discovery after
-backgrounding or a settings change. `PeerGatewaySettingsUITests` exercises the
-Advanced controls and relaunch persistence with a disposable wallet.
-
-To opt into a read-only check of the two named gateways on the connected tailnet:
-
-```sh
-scripts/check-live-gateways [peers.json]
-```
-
-It discovers both gateways, then fetches the census from its I2P mirror through
-the I2P gateway and verifies the publisher signature. Given a current local
-`peers.json` with its `peers.json.sig` beside it, it also performs Bitcoin
-handshakes through both gateways. The check sends no wallet addresses or
-transactions. CI has no tailnet, so this check is manual; the
-[2026-09-29 run](security/evidence/live-gateways-2026-09-29.md) is recorded.
+winnow-lean's `io-test` (CI's `extra` job) checks gateway configuration and
+address parsing, MagicDNS answers, discovery, SOCKS5 greetings, routed HTTP
+(I2P alone makes no request; Tor alone fetches through its gateway by host
+name) and a regtest node reached by an onion name through a SOCKS5 stand-in.
+Live Tor and I2P are not involved, and CI has no tailnet of real gateways.
+The [2026-09-29 run](security/evidence/live-gateways-2026-09-29.md) of the
+Swift app's manual live-gateway check is recorded; the Lean repository has no
+such script.
 
 A successful greeting is not proof of Tor/I2P reachability. A physical iPhone
 with the Tailscale VPN enabled remains part of device acceptance testing.

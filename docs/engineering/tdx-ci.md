@@ -1,4 +1,10 @@
-# Parallel validation on tdx
+# Parallel validation on tdx (retired)
+
+> **Retired, 30 October 2026.** This described the Swift app's tdx CI, which
+> ended with 0.8.13. Winnow's CI now runs on WarpBuild through LeanNative's
+> ios-app workflow: see [/testing](../testing.md).
+
+## History: the Swift app's tdx CI
 
 GitHub Actions coordinates four single-job macOS guests. Package (8 CPU/24 GiB)
 checks run independently of the build (12/32). Units (8/24) and the complete
@@ -23,7 +29,7 @@ repository secrets: the outer coordinator passes only the two named Cloudflare
 credentials to a separate hosted website consumer after validation succeeds.
 The required aggregate also requires deployment success when deployment is expected.
 
-## Host installation and isolation
+### Host installation and isolation
 
 `scripts/tdx/controller.py` is installed by an administrator on tdx2, never run
 from a PR checkout on the host. Its trusted workflow allowlist, numeric job IDs,
@@ -70,7 +76,7 @@ the run and cleans the guest. A stalled cancellation is escalated once after
 to clear a lost runner. Queued work stays queued throughout that interval.
 There are no automatic test retries.
 
-## Evidence and caches
+### Evidence and caches
 
 Compilation caches include only compatible source/build products and are keyed
 by role, complete test-input fingerprint, toolchain and architecture. They never
@@ -94,7 +100,7 @@ may omit the iCloud environment until export. The exact exported IPA is then
 checked for Production iCloud, disabled debugging, signature, identity, ARM64 and
 absence of test controls; its hash is checked again immediately before upload.
 
-## Rollout and fallback
+### Rollout and fallback
 
 Until three fresh trials of one revision pass, `TDX_CI_ENABLED` remains unset or
 false and normal CI stays hosted. `tdx-trial.yml` runs the pool while preserving the hosted baseline; start it

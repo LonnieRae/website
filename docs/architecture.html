@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How Winnow works</title>
-<meta name="description" content="How Winnow finds payments, restores history, and coordinates shared signing on your phone.">
+<meta name="description" content="How Winnow finds payments, restores history, and coordinates multisig signing on your phone.">
 <link rel="canonical" href="https://winnowwallet.com/architecture">
 <meta property="og:title" content="How Winnow works">
-<meta property="og:description" content="How Winnow finds payments, restores history, and coordinates shared signing on your phone.">
+<meta property="og:description" content="How Winnow finds payments, restores history, and coordinates multisig signing on your phone.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://winnowwallet.com/architecture">
 <meta property="og:image" content="https://winnowwallet.com/og.png">
@@ -176,7 +176,7 @@
   @keyframes f3sweep{0%{width:0}70%,100%{width:var(--w)}}
   .f3-scan span{position:absolute;right:6px;top:50%;transform:translateY(-50%);
     font-family:var(--mono);font-size:.55rem;color:var(--mark);white-space:nowrap}
-  /* ══ FIG 4 — MuSig2 ═════════════════════════════════════════ */
+  /* ══ FIG 4 — script-path k-of-n ═════════════════════════════ */
   .f4{display:grid;gap:.9rem;grid-template-columns:1fr;align-items:stretch}
   @media(min-width:52rem){.f4{grid-template-columns:1fr 1fr 1fr auto 1.15fr}}
   .f4-stage{border:1px solid var(--night-rule);border-radius:.6rem;padding:.75rem .7rem;
@@ -202,6 +202,10 @@
   .f4-out{border:1px solid var(--mark);border-radius:.6rem;padding:.75rem .7rem;background:rgba(247,147,26,.1)}
   .f4-out .sig{font-family:var(--mono);font-size:.62rem;color:var(--mark);word-break:break-all;line-height:1.4}
   .f4-out h4{font-size:.8rem;font-weight:640;margin-bottom:.3rem;color:var(--night-ink)}
+  .f4-signers i.off{background:rgba(168,162,148,.22)}
+  .f4-recovery{margin-top:.9rem;border:1px dashed var(--night-rule);border-radius:.6rem;padding:.65rem .8rem;
+    display:grid;grid-template-columns:auto 1fr;gap:.3rem .8rem;align-items:baseline}
+  .f4-recovery p{font-size:.72rem;color:var(--night-ink-2);line-height:1.4}
 
   /* ══ FIG 5 — cross-peer agreement ═══════════════════════════ */
   .f5{display:grid;gap:.7rem}
@@ -224,6 +228,17 @@
     78%,100%{opacity:1;transform:translateX(0);border-color:var(--night-rule)}
   }
   .f5-note{margin-top:.2rem;font-size:.78rem;color:var(--night-ink-2)}
+
+  /* ══ FIG 6 — how the app is built ═══════════════════════════ */
+  .f6{display:grid;gap:.6rem}
+  .f6-layer{display:grid;grid-template-columns:1fr;gap:.3rem;border:1px solid var(--night-rule);
+    border-radius:.6rem;padding:.7rem .85rem;background:var(--night-2)}
+  @media(min-width:46rem){.f6-layer{grid-template-columns:11rem 1fr}}
+  .f6-layer.lean{border-color:var(--mark);background:rgba(247,147,26,.08)}
+  .f6-layer h4{font-size:.8rem;font-weight:640}
+  .f6-layer p{font-size:.74rem;color:var(--night-ink-2);line-height:1.45}
+  .f6-layer code{font-family:var(--mono);font-size:.68rem;color:var(--night-ink)}
+  .f6-down{font-family:var(--mono);font-size:.6rem;color:var(--night-ink-2);letter-spacing:.06em;padding-left:.85rem}
 
   .motion-control{display:flex;align-items:center;gap:.5rem;min-height:44px;margin-top:.6rem;font-size:.9rem;color:var(--ink-2);cursor:pointer}
   .motion-control input{accent-color:var(--seed);width:1rem;height:1rem}
@@ -252,13 +267,13 @@
   footer{border-top:1px solid var(--rule);padding:2rem 0 3rem;font-size:.86rem;color:var(--ink-3);margin-top:3rem}
 .takeaway a{text-decoration:underline;text-underline-offset:.15em}
 
-.topbar{border-bottom:1px solid var(--rule)}.topbar .bar{max-width:72.5rem;margin:auto;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;min-height:88px}.topbar .mark{font-size:1.4rem;font-weight:680;color:var(--ink)}.topbar .links{display:flex;gap:1.1rem;flex-wrap:wrap;font-size:.88rem}.topbar a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink-2)}.skip-link{position:fixed;top:-6rem;left:1rem;padding:.7rem 1rem;background:var(--ink);color:var(--paper);z-index:100}.skip-link:focus{top:1rem}footer .bar{max-width:58rem;margin:auto;padding:0 2rem}footer nav{display:flex;gap:1.4rem;flex-wrap:wrap}footer a{min-height:44px;display:inline-flex;align-items:center}.technical-guides{display:flex;gap:.6rem 1.2rem;flex-wrap:wrap;font-size:.9rem;margin:1.5rem 0}.technical-guides a{min-height:36px;display:inline-flex;align-items:center}
+.topbar{border-bottom:1px solid var(--rule)}.topbar .bar{max-width:72.5rem;margin:auto;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;min-height:88px}.topbar .mark{font-size:1.4rem;font-weight:680;color:var(--ink)}.topbar .links{display:flex;gap:1.1rem;flex-wrap:wrap;font-size:.88rem}.topbar a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink-2)}.skip-link{position:fixed;top:-6rem;left:1rem;padding:.7rem 1rem;background:var(--ink);color:var(--paper);z-index:100}.skip-link:focus{top:1rem}footer .bar{max-width:58rem;margin:auto;padding:0 2rem}footer nav{display:flex;gap:1.4rem;flex-wrap:wrap}footer a{min-height:44px;display:inline-flex;align-items:center}.technical-guides{display:flex;gap:.6rem 1.2rem;flex-wrap:wrap;font-size:.9rem;margin:1rem 0}.technical-guides a{min-height:36px;display:inline-flex;align-items:center}.technical-guides b{min-height:36px;display:inline-flex;align-items:center;font-weight:600;color:var(--ink-2);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}
 @media(max-width:40rem){.topbar .bar{padding:.6rem 1.1rem;gap:0}.topbar .links{gap:1rem;font-size:.8rem}}
 </style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/research/">Research</a><a href="/vaults">Shared wallets</a><a href="https://github.com/winnowwallet/winnow">GitHub ↗</a></nav></div></header>
+<header class="topbar"><div class="bar"><a class="mark" href="/" aria-label="Winnow home">winnow</a><nav class="links" aria-label="Main"><a href="/architecture">How it works</a><a href="/research/">Research</a><a href="/vaults">Multisig</a><a href="https://github.com/winnowwallet/winnow-lean">GitHub ↗</a></nav></div></header>
 
 <header class="page">
   <div class="wrap">
@@ -266,7 +281,8 @@
     <h1>How Winnow works.</h1>
     <p class="sub" style="margin-top:1.1rem;max-width:40rem">Your phone finds and checks payments, keeps your wallet history, and signs with the keys you control.</p>
     <p class="takeaway">Clearnet connections use your device’s IP address; your own Tor or I2P gateways can carry peer connections instead. Peers can see which blocks you request. <a href="/read-side">Read the privacy and trust limits</a>.</p>
-    <nav class="technical-guides" aria-label="Technical guides"><a href="/mobile">Device overview</a><a href="/read-side">Finding payments</a><a href="/write-side">Sending</a><a href="/import">Recovery</a><a href="/vaults">Shared wallets</a></nav>
+    <nav class="technical-guides" aria-label="Technical guides"><b>Guides</b><a href="/mobile">Device overview</a><a href="/read-side">Finding payments</a><a href="/write-side">Sending</a><a href="/import">Recovery</a><a href="/vaults">Multisig</a></nav>
+    <nav class="technical-guides" aria-label="On this page"><b>On this page</b><a href="#fig-filters">Finding payments</a><a href="#fig-window">Pending payments</a><a href="#fig-forward">Restoring</a><a href="#fig-multisig">k-of-n accounts</a><a href="#fig-peers">Peer checks</a><a href="#fig-build">How the app is built</a></nav>
     <label class="motion-control"><input type="checkbox" id="animate-diagrams">Animate diagrams</label>
   </div>
 </header>
@@ -359,40 +375,44 @@
         </div>
       </div>
     </div>
-    <p class="takeaway">Automatic encrypted iCloud recovery includes this phone’s signing key, history, shared accounts and saved people. Beginner mode shows its save status; Advanced can turn it off. For manual recovery, keep <b>both recovery words and a backup file</b>. Words alone do not restore past payments. A phrase-free file restores watch-only access on a replacement device; manual JSON import needs a file containing the words to restore signing. Cloud recovery requires the same Apple Account with iCloud Keychain. Without iCloud, the wallet remains usable and offers a manual backup. <a href="/import">Backup and recovery</a>.</p>
+    <p class="takeaway">Automatic encrypted iCloud recovery includes this phone’s signing key, history, multisig accounts, the signer list and saved people. Simple mode shows its save status; Advanced can turn it off. For manual recovery, keep <b>both recovery words and a backup file</b>. Words alone do not restore past payments or multisig accounts. A phrase-free file restores watch-only access on a replacement device; manual JSON import needs a file containing the words to restore signing. Cloud recovery requires the same Apple Account with iCloud Keychain. Without iCloud, the wallet remains usable and offers a manual backup. <a href="/import">Backup and recovery</a>.</p>
   </figure>
 
   <!-- ═══ FIGURE 4 ═══ -->
-  <figure class="fig" id="fig-musig">
-    <h2>4 · Share payment approval</h2>
-    <p class="sub">A 2-of-2 MuSig2 account needs both independent keys to approve a payment. A script-path 2-of-3 account lets any two owners approve while the third is away.</p>
+  <figure class="fig" id="fig-multisig">
+    <h2>4 · Spend from a k-of-n account</h2>
+    <p class="sub">A multisig account is a Taproot address with no usable key path, <code>tr(NUMS, sortedmulti_a(k, …))</code>. Any k of its n signers can approve a payment. Each signs the same script-path message on its own, in any order, with no rounds between them. The PSBT carries the signatures from one signer to the next.</p>
     <div class="stage">
       <div class="f4">
         <div class="f4-stage">
-          <h4>Round 1 · nonces</h4>
-          <p>Each signer publishes a public nonce. The phone’s secret nonce stays in the signing screen and never persists — leaving before round&nbsp;2 abandons the session.</p>
-          <div class="f4-signers"><i></i><i></i></div>
+          <h4>Build the payment</h4>
+          <p>Send builds an unsigned PSBT from the account’s coins. Copy it to the other signers however you like; a co-signer’s Winnow pastes it back. There is no coordinator server.</p>
+          <div class="f4-signers"><i class="off"></i><i class="off"></i><i class="off"></i></div>
         </div>
         <div class="f4-stage">
-          <h4>Round 2 · partials</h4>
-          <p>The phone and second signer each sign the same sighash, producing a partial signature that is verified before it is attached. Signing zeroes the secret nonce.</p>
-          <div class="f4-signers"><i></i><i></i></div>
+          <h4>Each signer signs alone</h4>
+          <p>This phone, a Ledger or a Bitcoin Core wallet signs the BIP341 script-path message for the leaf and adds its signature to the PSBT. A Ledger first shows the payment on its own screen.</p>
+          <div class="f4-signers"><i></i><i></i><i class="off"></i></div>
         </div>
         <div class="f4-stage">
-          <h4>Aggregate</h4>
-          <p>Combine the partial signatures and verify the result against the account’s key.</p>
+          <h4>Finalize</h4>
+          <p>Once k signatures are in the PSBT, Finalize and broadcast writes the witness and relays the transaction to peers.</p>
           <div class="f4-signers"><i style="background:var(--mark)"></i></div>
         </div>
         <div class="f4-arrow">→</div>
         <div class="f4-out">
           <h4>On chain</h4>
-          <p class="sig">64 bytes · P2TR key-path</p>
+          <p class="sig">k signatures · the leaf script · its control block · P2TR script-path</p>
           <p style="font-size:.72rem;color:var(--night-ink-2);line-height:1.4;margin-top:.35rem">
-            The signature has the form of an ordinary Taproot key-path spend. It does not reveal how many signers participated.</p>
+            The spend reveals the leaf and its k signatures, with an empty slot for each key that did not sign. Anyone can see it was a k-of-n spend and which keys signed.</p>
         </div>
       </div>
+      <div class="f4-recovery">
+        <span class="lbl">Optional recovery leaf</span>
+        <p>Opens after a delay: once a coin has not moved for a chosen number of blocks (<code>older(N)</code>), fewer of the same signers, or a separate recovery key, can spend it. Until then the leaf refuses it.</p>
+      </div>
     </div>
-    <p class="takeaway">Each owner must keep an independent key and backup. The <a href="/recording">recorded journey</a> tests both policies with Bitcoin Core cosigners; hardware-wallet compatibility needs separate testing. <a href="/vaults">Signing and recovery limits</a>.</p>
+    <p class="takeaway">Each signer keeps an independent key and backup; recovery words restore the wallet, not its accounts. CI’s <a href="/recording">recorded journeys</a> build a 2-of-3 with two Bitcoin Core wallets, spend from it with two signatures and then on the recovery path, and spend a 2-of-2 with a simulated Ledger. A real Nano X co-signed a mainnet 2-of-2 with the Swift app (0.8.14); the Lean app’s CI uses a simulated Ledger. <a href="/vaults">Signing and recovery limits</a>.</p>
   </figure>
 
   <!-- ═══ FIGURE 5 ═══ -->
@@ -420,6 +440,42 @@
       <p class="f5-note">For checkpoints, a strict majority identifies a disagreeing peer. Without a majority, Winnow replaces the queried peers. Other filter checks have their own rules.</p>
     </div>
     <p class="takeaway">Several peers can share an operator and agree on false data. These checks do not make the phone a fully validating node. <a href="/read-side">What Winnow verifies</a>.</p>
+  </figure>
+
+  <!-- ═══ FIGURE 6 ═══ -->
+  <figure class="fig" id="fig-build">
+    <h2>6 · How the app is built</h2>
+    <p class="sub">Winnow is written in Lean 4: the wallet and the app’s model, update and view, compiled to C. Standard UIKit controls draw it, through an Objective-C shell that LeanNative prints from Lean at build time. No Swift is compiled.</p>
+    <div class="stage">
+      <div class="f6">
+        <div class="f6-layer lean">
+          <h4>Wallet · <code>Lean/Winnow</code></h4>
+          <p>Keys, transactions, PSBTs, descriptors, compact-filter sync, peers, the mempool window and the broadcaster. Bitcoin P2P runs over Lean’s own TCP, on libuv.</p>
+        </div>
+        <div class="f6-layer lean">
+          <h4>Curve · <code>Lean/Secp</code></h4>
+          <p>Winnow’s own secp256k1. Lean proofs tie its field and point arithmetic, public keys, tweaks, and BIP340 signing and verification to a specification curve, and the build fails if one rests on an unproved step. It is not constant-time.</p>
+        </div>
+        <div class="f6-layer lean">
+          <h4>App · <code>LeanApp/WinnowApp</code></h4>
+          <p>Model, update and view, Elm-style: <code>update</code> turns each event into a new model and commands, and <code>view</code> returns a tree of screens and controls.</p>
+        </div>
+        <p class="f6-down">↓ compiled by Lean to C, linked with Lean’s runtime</p>
+        <div class="f6-layer">
+          <h4>Shell · LeanNative</h4>
+          <p>Objective-C on UIKit, held as Lean data and printed into the build directory on every build, never checked in. It draws the view tree with standard UIKit controls and sends events back.</p>
+        </div>
+        <div class="f6-layer">
+          <h4>Typed capabilities</h4>
+          <p>What only iOS can do: Keychain, Face ID or passcode, HTTPS GET, Bluetooth LE for the Ledger, CloudKit, background tasks, clipboard and file paths. LeanNative’s Lean clients turn the main ones into typed requests and answers, and the app lists the ones it uses in its manifest.</p>
+        </div>
+        <div class="f6-layer">
+          <h4>Project · <code>WinnowApp/Project.lean</code></h4>
+          <p>The Xcode project is generated from this Lean manifest: bundle id, bundled guides and peer list, background task ids, iCloud container, usage texts. Generation refuses a capability without its usage text or entitlement.</p>
+        </div>
+      </div>
+    </div>
+    <p class="takeaway">CI checks every Debug, Release and device build for Swift, and a release checks the signed archive and IPA again. The proofs cover the curve arithmetic, not the Objective-C shell or iOS, which are trusted. Lean’s runtime libraries run on iOS retargeted from macOS builds, which Lean does not support officially. Source: <a href="https://github.com/winnowwallet/winnow-lean">winnow-lean</a> (MIT) and <a href="https://github.com/LeanNative/leannative">LeanNative</a>.</p>
   </figure>
 
 </main>
